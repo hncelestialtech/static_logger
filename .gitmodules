@@ -1,0 +1,3 @@
+[submodule "tsc_clock"]
+	path = tsc_clock
+	url = git@github.com:hncelestialtech/tsc_clock.git
