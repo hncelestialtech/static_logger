@@ -435,8 +435,8 @@ typename std::enable_if<!std::is_same<T, const wchar_t*>::value
                         , void>::type
 storeArgument(char **storage,
                T arg,
-               ParamType paramType,
-               size_t stringSize)
+               ParamType param_type,
+               size_t string_size)
 {
     std::memcpy(*storage, &arg, sizeof(T));
     *storage += sizeof(T);
@@ -457,25 +457,25 @@ typename std::enable_if<std::is_same<T, const wchar_t*>::value
                         , void>::type
 storeArgument(char **storage,
                T arg,
-               const ParamType paramType,
-               const size_t stringSize)
+               const ParamType param_type,
+               const size_t string_size)
 {
     // If the printf style format string's specifier says the arg is not
     // a string, we save it as a pointer instead
-    if (paramType <= ParamType::NON_STRING) {
+    if (param_type <= ParamType::NON_STRING) {
         storeArgument<const void*>(storage, static_cast<const void*>(arg),
-                                    paramType, stringSize);
+                                    param_type, string_size);
         return;
     }
 
     // Since we've already paid the cost to find the string length earlier,
     // might as well save it in the stream so that the compression function
     // can later avoid another strlen/wsclen invocation.
-    if(stringSize > std::numeric_limits<uint32_t>::max())
+    if(string_size > std::numeric_limits<uint32_t>::max())
     {
         throw std::invalid_argument("Strings larger than std::numeric_limits<uint32_t>::max() are unsupported");
     }
-    auto size = static_cast<uint32_t>(stringSize);
+    auto size = static_cast<uint32_t>(string_size);
     std::memcpy(*storage, &size, sizeof(uint32_t));
     *storage += sizeof(uint32_t);
 
@@ -491,8 +491,8 @@ storeArgument(char **storage,
 #pragma GCC diagnostic pop
 #endif
 
-    memcpy(*storage, arg, stringSize);
-    *storage += stringSize;
+    memcpy(*storage, arg, string_size);
+    *storage += string_size;
     return;
 }
 

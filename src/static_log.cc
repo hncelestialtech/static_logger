@@ -4,7 +4,30 @@
 
 namespace static_log
 {
-LogLevels::LogLevel getLogLevel() {
-    return StaticLogBackend::getLogLevel();
+
+void preallocate()
+{
+    details::StaticLogBackend::preallocate();
 }
+
+void setLogFile(const char* filename)
+{
+
+}
+
+LogLevels::LogLevel getLogLevel() 
+{
+    return details::StaticLogBackend::getLogLevel();
+}
+
+void setLogLevel(LogLevels::LogLevel log_level) 
+{
+    details::StaticLogBackend::setLogLevel(log_level);
+}
+
+void sync()
+{
+
+}
+
 } // namespace static_log

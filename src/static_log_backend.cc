@@ -1,17 +1,67 @@
 #include "static_log_backend.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <chrono>
+
 namespace static_log {
 
 namespace details {
 __thread StagingBuffer *StaticLogBackend::staging_buffer_ = nullptr;
-StaticLogBackend static_logger_backend{};
+StaticLogBackend StaticLogBackend::logger_;
+
+#define DEFAULT_INTERVAL 10
+uint32_t poll_interval_no_work = DEFAULT_INTERVAL;
+
+#define DEFAULT_LOGFILE     "log.txt"
+
+StaticLogBackend::StaticLogBackend():
+    current_log_level_(LogLevels::kDEBUG),
+    buffer_mutex_(),
+    cond_mutex_(),
+    wake_up_cond_(),
+    next_buffer_id_(0),
+    thread_buffers_(),
+    is_stop_(false),
+    outfd_(-1)
+{
+    const char * logfile = DEFAULT_LOGFILE;
+    outfd_ = open(logfile, O_RDWR|O_CREAT, 0666);
+    if (outfd_ < 0) {
+        fprintf(stderr, "Failed to open log file\n");
+        exit(-1);
+    }
+
+    fdflush_ = std::thread(&StaticLogBackend::io_poll_backend, this);
+}
+
+StaticLogBackend::~StaticLogBackend()
+{
+    is_stop_ = false;
+    fdflush_.join();
+}
+
+void StaticLogBackend::io_poll_backend()
+{
+    while (!is_stop_) {
+        while(!thread_buffers_.empty()) {
+            
+        }
+        std::unique_lock<std::mutex> lock(cond_mutex_);
+        wake_up_cond_.wait_for(lock, std::chrono::microseconds(poll_interval_no_work));
+    }
+}
 
 /**
 * Attempt to reserve contiguous space for the producer without making it
 * visible to the consumer (See reserveProducerSpace).
 *
 * This is the slow path of reserveProducerSpace that checks for free space
-* within storage[] that involves touching variable shared with the compression
+* within storage[] that involves touching variable shared with 
 * thread and thus causing potential cache-coherency delays.
 *
 * \param nbytes
@@ -27,7 +77,8 @@ StaticLogBackend static_logger_backend{};
 *      at least nbytes.
 */
 char *
-RuntimeLogger::StagingBuffer::reserveSpaceInternal(size_t nbytes, bool blocking) {
+StagingBuffer::reserveSpaceInternal(size_t nbytes, bool blocking) 
+{
     const char *end_of_buffer = storage_ + STAGING_BUFFER_SIZE;
 
     // There's a subtle point here, all the checks for remaining
@@ -70,7 +121,7 @@ RuntimeLogger::StagingBuffer::reserveSpaceInternal(size_t nbytes, bool blocking)
             return nullptr;
     }
 
-    return producerPos;
+    return producer_pos_;
 }
 
 /**
@@ -86,7 +137,7 @@ RuntimeLogger::StagingBuffer::reserveSpaceInternal(size_t nbytes, bool blocking)
 *      Pointer to the consumable space
 */
 char *
-RuntimeLogger::StagingBuffer::peek(uint64_t *bytes_available) {
+StagingBuffer::peek(uint64_t *bytes_available) {
     // Save a consistent copy of producerPos
     char *cached_producer_pos = producer_pos_;
 
@@ -97,7 +148,7 @@ RuntimeLogger::StagingBuffer::peek(uint64_t *bytes_available) {
             return consumer_pos_;
 
         // Roll over
-        consumer_pos_ = storage;
+        consumer_pos_ = storage_;
     }
 
     *bytes_available = cached_producer_pos - consumer_pos_;

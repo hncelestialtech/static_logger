@@ -35,7 +35,6 @@ namespace LogLevels {
         kNUM_LOG_LEVELS // must be the last element in the enum
     };
 };
-using namespace LogLevels;
 
 // User API
 
@@ -66,12 +65,12 @@ void setLogFile(const char* filename);
  * \param logLevel
  *      New Log level to set
  */
-void setLogLevel(LogLevel logLevel);
+void setLogLevel(LogLevels::LogLevel logLevel);
 
 /**
  * Returns the current minimum log severity level enforced by StaticLog
  */
-LogLevel getLogLevel();
+LogLevels::LogLevel getLogLevel();
 
 /**
  * Waits until all pending log statements are persisted to disk. Note that if
@@ -83,6 +82,6 @@ void sync();
 
 } // namespace static_log
 
-#include "static_front_logger.h"
+#include "static_log_front.h"
 
 #endif // STATIC_LOG_H

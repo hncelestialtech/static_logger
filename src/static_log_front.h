@@ -51,10 +51,10 @@ template<long unsigned int N, int M, typename... Ts>
 inline void
 log(const char *filename,
     const int linenum,
-    const LogLevel severity,
+    const LogLevels::LogLevel severity,
     const char (&format)[M],
     const int num_nibbles,
-    const std::array<ParamType, N>& param_types,
+    const std::array<internal::ParamType, N>& param_types,
     Ts... args)
 {
     assert(N == static_cast<uint32_t>(sizeof...(Ts)));
@@ -68,8 +68,8 @@ log(const char *filename,
     char *write_pos = StaticLogBackend::reserveAlloc(alloc_size);
     auto original_write_pos = write_pos;
     
-    LogEntry *log_entry = new(write_pos) LogEntry(N, &param_types);
-    write_pos += sizeof(LogEntry);
+    internal::LogEntry *log_entry = new(write_pos) internal::LogEntry(N, &param_types);
+    write_pos += sizeof(internal::LogEntry);
 
     internal::utils::storeArguments(param_types, stringSizes, &write_pos, args...);
 
