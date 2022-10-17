@@ -45,8 +45,12 @@ StaticLogBackend::~StaticLogBackend()
     fdflush_.join();
 }
 
-void StaticLogBackend::io_poll_backend()
+#define DEFALT_CACHE_SIZE 1024 * 1024
+void 
+StaticLogBackend::io_poll_backend()
 {
+    char log_content_cache[DEFALT_CACHE_SIZE];
+    int bf_idx = 0;
     while (!is_stop_) {
         while(!thread_buffers_.empty()) {
             

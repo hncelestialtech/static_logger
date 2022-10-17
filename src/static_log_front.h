@@ -1,9 +1,12 @@
 #ifndef STATIC_LOGGER_H
 #define STATIC_LOGGER_H
 
+#include <assert.h>
+
 #include "static_log.h"
 #include "static_log_internal.h"
 #include "static_log_utils.h"
+#include "static_log_backend.h"
 
 #include "tsc_clock.h"
 
@@ -63,7 +66,7 @@ log(const char *filename,
     uint64_t timestamp = rdtsc();
     size_t stringSizes[N + 1] = {}; //HACK: Zero length arrays are not allowed
     size_t alloc_size = internal::utils::getArgSizes(param_types, previousPrecision,
-                            stringSizes, args...) + sizeof(LogEntry);
+                            stringSizes, args...) + sizeof(internal::LogEntry);
     
     char *write_pos = StaticLogBackend::reserveAlloc(alloc_size);
     auto original_write_pos = write_pos;
@@ -74,14 +77,9 @@ log(const char *filename,
     internal::utils::storeArguments(param_types, stringSizes, &write_pos, args...);
 
     log_entry->timestamp = timestamp;
-    log_entry->entry_size = downCast<uint32_t>(alloc_size);
+    log_entry->entry_size = internal::utils::downCast<uint32_t>(alloc_size);
 
-// #ifdef ENABLE_DEBUG_PRINTING
-//     printf("\r\nRecording %d:'%s' of size %u\r\n",
-//                         logId, info.formatString, ue->entrySize);
-// #endif
-
-    assert(alloc_size == downCast<uint32_t>((write_pos - original_write_pos)));
+    assert(alloc_size == internal::utils::downCast<uint32_t>((write_pos - original_write_pos)));
     StaticLogBackend::finishAlloc(alloc_size);
 }
 

@@ -2,8 +2,12 @@
 #define STATIC_LOG_UTILS_H
 
 #include <stdint.h>
+#include <stdint.h>
+#include <string.h>
 
 #include <utility>
+#include <stdexcept>
+#include <limits>
 
 #include "static_log_internal.h"
 #include "static_log_common.h"
@@ -438,7 +442,7 @@ storeArgument(char **storage,
                ParamType param_type,
                size_t string_size)
 {
-    std::memcpy(*storage, &arg, sizeof(T));
+    memcpy(*storage, &arg, sizeof(T));
     *storage += sizeof(T);
 
     #ifdef ENABLE_DEBUG_PRINTING
@@ -476,7 +480,7 @@ storeArgument(char **storage,
         throw std::invalid_argument("Strings larger than std::numeric_limits<uint32_t>::max() are unsupported");
     }
     auto size = static_cast<uint32_t>(string_size);
-    std::memcpy(*storage, &size, sizeof(uint32_t));
+    memcpy(*storage, &size, sizeof(uint32_t));
     *storage += sizeof(uint32_t);
 
 #ifdef ENABLE_DEBUG_PRINTING
@@ -550,6 +554,22 @@ storeArguments(const std::array<ParamType, N>&,
                 char **)
 {
     // No arguments, do nothing.
+}
+
+#include <cassert>
+/**
+ * Cast one size of int down to another one.
+ * Asserts that no precision is lost at runtime.
+ */
+template<typename Small, typename Large>
+inline Small
+downCast(const Large& large)
+{
+    Small small = static_cast<Small>(large);
+    // The following comparison (rather than "large==small") allows
+    // this method to convert between signed and unsigned values.
+    assert(large-small == 0);
+    return small;
 }
 
 } // utils

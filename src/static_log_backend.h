@@ -120,6 +120,7 @@ public:
     }
 
     ~StagingBuffer() {
+        should_deallocate_ = true;
     }
 
     StagingBuffer(const StagingBuffer&)=delete;
@@ -178,6 +179,7 @@ private:
     friend class StaticLogBackend;
 };
 
+class StagingBufferDestroyer;
 
 class StaticLogBackend {
 public:
@@ -265,12 +267,25 @@ private:
             guard.lock();
 
             thread_buffers_.push_back(staging_buffer_);
+            destroyer_.createDestroyer();
         }
     }
     
     void io_poll_backend();
 private:
     static __thread StagingBuffer *staging_buffer_;
+
+    class StagingBufferDestroyer {
+    public:
+        StagingBufferDestroyer() {}
+        ~StagingBufferDestroyer() {
+            if (StaticLogBackend::staging_buffer_ != nullptr) {
+                StaticLogBackend::staging_buffer_->should_deallocate_ = true;
+            }
+        }
+        void createDestroyer() {}
+    };
+    static thread_local StagingBufferDestroyer destroyer_;
 
     // Minimum log level that RuntimeLogger will accept. Anything lower will
     // be dropped.

@@ -82,6 +82,4 @@ void sync();
 
 } // namespace static_log
 
-#include "static_log_front.h"
-
 #endif // STATIC_LOG_H
