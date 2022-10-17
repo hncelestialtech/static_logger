@@ -1,11 +1,22 @@
 #ifndef STATIC_LOG_BACKEND_H
 #define STATIC_LOG_BACKEND_H
 
+#include <stdlib.h>
+#include <assert.h>
+
+#include <memory>
+#include <mutex>
+#include <vector>
+#include <condition_variable>
+#include <thread>
+
 #include "static_log.h"
 #include "static_log_common.h"
 
 namespace static_log {
 namespace details{
+
+extern uint32_t poll_interval_no_work;
 
 /**
  * Implements a circular FIFO producer/consumer byte queue that is used
@@ -170,8 +181,30 @@ private:
 
 class StaticLogBackend {
 public:
-    static LogLevels::LogLevel getLogLevel() {
-        return {};
+    
+    static void preallocate()
+    {
+        logger_.ensureStagingBufferAllocated();
+    }
+
+    static LogLevels::LogLevel getLogLevel()
+    {
+        return logger_.current_log_level_;
+    }
+
+    /**
+    * Sets the minimum log level new NANO_LOG messages will have to meet before
+    * they are saved. Anything lower will be dropped.
+    *
+    * \param log_level
+    *      LogLevel enum that specifies the minimum log level.
+    */
+    static void setLogLevel(LogLevels::LogLevel log_level) {
+        if (log_level < 0)
+            log_level = static_cast<LogLevels::LogLevel>(0);
+        else if (log_level >= LogLevels::LogLevel::kNUM_LOG_LEVELS)
+            log_level = static_cast<LogLevels::LogLevel>(LogLevels::LogLevel::kNUM_LOG_LEVELS - 1);
+        logger_.current_log_level_ = log_level;
     }
 
     /**
@@ -192,9 +225,9 @@ public:
     static inline char *
     reserveAlloc(size_t nbytes) {
         if (staging_buffer_ == nullptr)
-            nanoLogSingleton.ensureStagingBufferAllocated();
+            logger_.ensureStagingBufferAllocated();
 
-        return staging_buffer_->reserveProducerSpace(nbytes);
+        return logger_.staging_buffer_->reserveProducerSpace(nbytes);
     }
 
     /**
@@ -206,12 +239,59 @@ public:
      */
     static inline void
     finishAlloc(size_t nbytes) {
-        staging_buffer_->finishReservation(nbytes);
+        logger_.staging_buffer_->finishReservation(nbytes);
     }
 
+
 private:
-    class StagingBuffer;
+    StaticLogBackend();
+    ~StaticLogBackend();
+
+    /**
+     * Allocates thread-local structures if they weren't already allocated.
+     * This is used by the generated C++ code to ensure it has space to
+     * log uncompressed messages to and by the user if they wish to
+     * preallocate the data structures on thread creation.
+     */
+    inline void ensureStagingBufferAllocated()
+    {
+        if (staging_buffer_ == nullptr) {
+            std::unique_lock<std::mutex> guard(buffer_mutex_);
+            uint32_t bufferId = next_buffer_id_++;
+
+            // Unlocked for the expensive StagingBuffer allocation
+            guard.unlock();
+            staging_buffer_ = new StagingBuffer(bufferId);
+            guard.lock();
+
+            thread_buffers_.push_back(staging_buffer_);
+        }
+    }
+    
+    void io_poll_backend();
+private:
     static __thread StagingBuffer *staging_buffer_;
+
+    // Minimum log level that RuntimeLogger will accept. Anything lower will
+    // be dropped.
+    LogLevels::LogLevel current_log_level_;
+
+    std::mutex buffer_mutex_;
+    std::mutex cond_mutex_;
+    std::condition_variable wake_up_cond_;
+    uint32_t   next_buffer_id_;
+
+    // Globally the thread-local stagingBuffers
+    std::vector<StagingBuffer *> thread_buffers_;
+
+    // Flag signaling the thread to stop running.
+    bool is_stop_;
+
+    std::thread fdflush_;
+
+    int     outfd_;
+private:
+    static StaticLogBackend logger_;
 };
 
 } // details
