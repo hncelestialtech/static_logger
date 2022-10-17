@@ -1,0 +1,8 @@
+/home/xhliu/work/staticLog/staticLog/build/CMakeFiles/static_log.dir
+/home/xhliu/work/staticLog/staticLog/build/CMakeFiles/edit_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/CMakeFiles/rebuild_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/tsc_clock/CMakeFiles/edit_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/tsc_clock/CMakeFiles/rebuild_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/tsc_clock/src/CMakeFiles/tscns.dir
+/home/xhliu/work/staticLog/staticLog/build/tsc_clock/src/CMakeFiles/edit_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/tsc_clock/src/CMakeFiles/rebuild_cache.dir

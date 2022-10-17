@@ -1,0 +1,2 @@
+/usr/bin/ar qc /home/xhliu/work/staticLog/staticLog/tsc_clock/output/lib/libtscns.a CMakeFiles/tscns.dir/tsc_clock_st.cc.o
+/usr/bin/ranlib /home/xhliu/work/staticLog/staticLog/tsc_clock/output/lib/libtscns.a
