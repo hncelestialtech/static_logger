@@ -3,10 +3,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include <chrono>
+
+#include "static_log_internal.h"
 
 namespace static_log {
 
@@ -45,15 +49,87 @@ StaticLogBackend::~StaticLogBackend()
     fdflush_.join();
 }
 
+static void
+convertInt2Str(int ts, char* raw) {
+    if (ts < 10) {
+        *raw = '0';
+        raw++;
+        *raw = std::to_string(ts).c_str()[0];
+        raw++;
+    } else {
+        memcpy(raw, std::to_string(ts).c_str(), 2);
+        raw+=2;
+    }
+}
+
+// [xxxx-xx-xx-hh:mm:ss.xxxxxxxxx]
+static int 
+generateTimePrefix(uint64_t timestamp, char* raw_data) {
+    const int prefix_len = 32;
+    const int nano_bits = 9;
+    *raw_data = '[';
+    raw_data++;
+    uint64_t nano = timestamp % 1000000000;
+    timestamp = timestamp / 1000000000;
+    struct tm* tm_now = localtime((time_t*)&timestamp);
+    memcpy(raw_data, std::to_string(tm_now->tm_year + 1900).c_str(), 4);
+    raw_data += 4;
+    *raw_data = '-';
+    convertInt2Str(tm_now->tm_mon + 1, raw_data);
+    *raw_data++ = '-';
+    convertInt2Str(tm_now->tm_mday, raw_data);
+    *raw_data++ = '-';
+    convertInt2Str(tm_now->tm_hour, raw_data);
+    *raw_data++ = ':';
+    convertInt2Str(tm_now->tm_min, raw_data);
+    *raw_data++ = ':';
+    convertInt2Str(tm_now->tm_sec, raw_data);
+    *raw_data++ = '.';
+    int nanolen = strlen(std::to_string(nano).c_str());
+    memcpy(raw_data, std::to_string(nano).c_str(), nanolen);
+    raw_data += nanolen;
+    if (nanolen < nano_bits) {
+        int bits = nano_bits - nanolen;
+        for(int i = 0; i < bits; ++i)
+            *raw_data++ = '0';
+    }
+    return prefix_len;
+}
+
 #define DEFALT_CACHE_SIZE 1024 * 1024
+void 
+StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
+{
+    char log_content_cache[DEFALT_CACHE_SIZE];
+    int reserved = DEFALT_CACHE_SIZE;
+    uint64_t bytes_available = 0;
+    char* raw_data = stagingbuffer->peek(&bytes_available);
+    if (bytes_available > 0) {
+        internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
+        
+
+        memcpy(raw_data, std::to_string(tm_now->tm_year + 1900).c_str(), 4);
+        raw_data += 
+    }
+}
+
 void 
 StaticLogBackend::io_poll_backend()
 {
-    char log_content_cache[DEFALT_CACHE_SIZE];
     int bf_idx = 0;
     while (!is_stop_) {
         while(!thread_buffers_.empty()) {
-            
+            auto thread_buffer = thread_buffers_[bf_idx];
+            if (thread_buffer->isAlive()) {
+                processLogBuffer(thread_buffer);
+            }
+            else {
+                thread_buffers_.erase(thread_buffers_.begin() + bf_idx);
+                if (thread_buffers_.empty()) 
+                    break;
+                bf_idx--;
+            }
+            bf_idx++;
         }
         std::unique_lock<std::mutex> lock(cond_mutex_);
         wake_up_cond_.wait_for(lock, std::chrono::microseconds(poll_interval_no_work));

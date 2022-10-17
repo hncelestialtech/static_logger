@@ -18,6 +18,8 @@ namespace details{
 
 extern uint32_t poll_interval_no_work;
 
+class StagingBufferDestroyer;
+
 /**
  * Implements a circular FIFO producer/consumer byte queue that is used
  * to hold the dynamic information of a NanoLog log statement (producer)
@@ -123,6 +125,10 @@ public:
         should_deallocate_ = true;
     }
 
+    bool isAlive() const {
+        return should_deallocate_;
+    }
+
     StagingBuffer(const StagingBuffer&)=delete;
     StagingBuffer& operator=(const StagingBuffer&)=delete;
     StagingBuffer(StagingBuffer&&)=delete;
@@ -177,9 +183,8 @@ private:
     char storage_[STAGING_BUFFER_SIZE];
 
     friend class StaticLogBackend;
+    friend class StagingBufferDestroyer;
 };
-
-class StagingBufferDestroyer;
 
 class StaticLogBackend {
 public:
@@ -244,6 +249,7 @@ public:
         logger_.staging_buffer_->finishReservation(nbytes);
     }
 
+    void processLogBuffer(StagingBuffer* stagingbuffer);
 
 private:
     StaticLogBackend();
