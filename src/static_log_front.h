@@ -56,30 +56,30 @@ log(const char *filename,
     const int linenum,
     const LogLevels::LogLevel severity,
     const char (&format)[M],
-    const int num_nibbles,
     const std::array<internal::ParamType, N>& param_types,
+    const internal::StaticInfo& static_info,
     Ts... args)
 {
     assert(N == static_cast<uint32_t>(sizeof...(Ts)));
 
     uint64_t previousPrecision = -1;
     uint64_t timestamp = rdtsc();
-    size_t stringSizes[N + 1] = {}; //HACK: Zero length arrays are not allowed
+    size_t string_sizes[N + 1] = {}; //HACK: Zero length arrays are not allowed
     size_t alloc_size = internal::utils::getArgSizes(param_types, previousPrecision,
-                            stringSizes, args...) + sizeof(internal::LogEntry);
+                            string_sizes, args...) + sizeof(internal::LogEntry);
     
     char *write_pos = StaticLogBackend::reserveAlloc(alloc_size);
     auto original_write_pos = write_pos;
     
-    internal::LogEntry *log_entry = new(write_pos) internal::LogEntry(N, &param_types);
+    internal::LogEntry *log_entry = new(write_pos) internal::LogEntry(&static_info);
     write_pos += sizeof(internal::LogEntry);
 
-    internal::utils::storeArguments(param_types, stringSizes, &write_pos, args...);
+    internal::utils::storeArguments(param_types, string_sizes, &write_pos, args...);
 
     log_entry->timestamp = timestamp;
     log_entry->entry_size = internal::utils::downCast<uint32_t>(alloc_size);
 
-    assert(alloc_size == internal::utils::downCast<uint32_t>((write_pos - original_write_pos)));
+    // assert(alloc_size == internal::utils::downCast<uint32_t>((write_pos - original_write_pos)));
     StaticLogBackend::finishAlloc(alloc_size);
 }
 
@@ -92,23 +92,19 @@ log(const char *filename,
  *      The LogLevel of the log invocation (must be constant)
  * \param format
  *      printf-like format string (must be literal)
- * \param ...UNASSIGNED_LOGID
+ * \param ...
  *      Log arguments associated with the printf-like string.
  */
 #define STATIC_LOG(severity, format, ...) do { \
-    constexpr int numNibbles = internal::utils::getNumNibblesNeeded(format); \
-    constexpr int nParams = internal::utils::countFmtParams(format); \
+    constexpr int n_params = internal::utils::countFmtParams(format); \
     \
-    /*** Very Important*** These must be 'static' so that we can save pointers
-     * to these variables and have them persist beyond the invocation.
-     * The static logId is used to forever associate this local scope (tied
-     * to an expansion of #NANO_LOG) with an id and the paramTypes array is
-     * used by the compression function, which is invoked in another thread
-     * at a much later time. */ \
-    static constexpr std::array<internal::ParamType, nParams> paramTypes = \
-                                internal::utils::analyzeFormatString<nParams>(format); \
+    /*** Very Important*** These must be 'static' so that we can save pointers 
+     **/ \
+    static constexpr std::array<internal::ParamType, n_params> param_types = \
+                                internal::utils::analyzeFormatString<n_params>(format); \
+    static constexpr internal::StaticInfo static_info =  StaticInfo(n_params, param_types, format); \
     \
-    if (static_log::severity > static_log::getLogLevel()) \
+    if (severity > static_log::getLogLevel()) \
         break; \
     \
     /* Triggers the GNU printf checker by passing it into a no-op function.
@@ -116,8 +112,8 @@ log(const char *filename,
      * evaluate for cases like '++i'.*/ \
     if (false) { internal::utils::checkFormat(format, ##__VA_ARGS__); } /*NOLINT(cppcoreguidelines-pro-type-vararg, hicpp-vararg)*/\
     \
-    details::log(logId, __FILE__, __LINE__, NanoLog::severity, format, \
-                            numNibbles, paramTypes, ##__VA_ARGS__); \
+    details::log(__FILE__, __LINE__, severity, format, \
+                            param_types, static_info, ##__VA_ARGS__); \
 } while(0)
 
 } // static_log

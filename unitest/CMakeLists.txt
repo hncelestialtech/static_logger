@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.10)
+project(unitest)
+add_compile_options(-g -O0)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/../src)
+add_executable(test_utils test_utils.cc)
+target_link_libraries(test_utils gtest)

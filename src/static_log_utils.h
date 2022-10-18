@@ -313,6 +313,141 @@ analyzeFormatString(const char (&fmt)[N])
 }
 
 /**
+ * Special templated function that takes in an argument T and attempts to
+ * convert it to a uint64_t. If the type T is incompatible, than a value
+ * of 0 is returned.
+ *
+ * This function is primarily to hack around
+ *
+ * \tparam T
+ *      Type of the input parameter (automatically deduced)
+ *
+ * \param t
+ *      Parameter to try to convert to a uint64_t
+ *
+ * \return
+ *      t as a uint64_t if it's convertible, otherwise a 0.
+ */
+template<typename T>
+inline
+typename std::enable_if<std::is_convertible<T, uint64_t>::value
+                        && !std::is_floating_point<T>::value
+                        , uint64_t>::type
+as_uint64_t(T t) {
+    return t;
+}
+
+template<typename T>
+inline
+typename std::enable_if<!std::is_convertible<T, uint64_t>::value
+                        || std::is_floating_point<T>::value
+                        , uint64_t>::type
+as_uint64_t(T t) {
+    return 0;
+}
+
+/**
+ * For a single non-string, non-void pointer argument, return the number
+ * of bytes needed to represent the full-width type without compression.
+ *
+ * \tparam T
+ *      Actual type of the argument (automatically deduced)
+ *
+ * \param fmtType
+ *      Type of the argument according to the original printf-like format
+ *      string (needed to disambiguate 'const char*' types from being
+ *      '%p' or '%s' and for precision info)
+ * \param[in/out] previousPrecision
+ *      Store the last 'precision' format specifier type encountered
+ *      (as dictated by the fmtType)
+ * \param stringSize
+ *      Byte length of the current argument, if it is a string, else, undefined
+ * \param arg
+ *      Argument to compute the size for
+ *
+ * \return
+ *      Size of the full-width argument without compression
+ */
+template<typename T>
+inline
+typename std::enable_if<!std::is_same<T, const wchar_t*>::value
+                        && !std::is_same<T, const char*>::value
+                        && !std::is_same<T, wchar_t*>::value
+                        && !std::is_same<T, char*>::value
+                        && !std::is_same<T, const void*>::value
+                        && !std::is_same<T, void*>::value
+                        , size_t>::type
+getArgSize(const ParamType fmtType,
+           uint64_t &previousPrecision,
+           size_t &stringSize,
+           T arg)
+{
+    if (fmtType == ParamType::DYNAMIC_PRECISION)
+        previousPrecision = as_uint64_t(arg);
+
+    return sizeof(T);
+}
+
+/**
+ * "void *" specialization for getArgSize. (See documentation above).
+ */
+inline size_t
+getArgSize(const ParamType,
+           uint64_t &previousPrecision,
+           size_t &stringSize,
+           const void*)
+{
+    return sizeof(void*);
+}
+
+/**
+ * String specialization for getArgSize. Returns the number of bytes needed
+ * to represent a string (with consideration for any 'precision' specifiers
+ * in the original format string and) without a NULL terminator and with a
+ * uint32_t length.
+ *
+ * \param fmtType
+ *      Type of the argument according to the original printf-like format
+ *      string (needed to disambiguate 'const char*' types from being
+ *      '%p' or '%s' and for precision info)
+ * \param previousPrecision
+ *      Store the last 'precision' format specifier type encountered
+ *      (as dictated by the fmtType)
+ * \param stringBytes
+ *      Byte length of the current argument, if it is a string, else, undefined
+ * \param str
+ *      String to compute the length for
+ * \return
+ *      Length of the string str with a uint32_t length and no NULL terminator
+ */
+inline size_t
+getArgSize(const ParamType fmtType,
+           uint64_t &previousPrecision,
+           size_t &stringBytes,
+           const char* str)
+{
+    if (fmtType <= ParamType::NON_STRING)
+        return sizeof(void*);
+
+    stringBytes = strlen(str);
+    uint32_t fmtLength = static_cast<uint32_t>(fmtType);
+
+    // Strings with static length specifiers (ex %.10s), have non-negative
+    // ParamTypes equal to the static length. Thus, we use that value to
+    // truncate the string as necessary.
+    if (fmtType >= ParamType::STRING && stringBytes > fmtLength)
+        stringBytes = fmtLength;
+
+    // If the string had a dynamic precision specified (i.e. %.*s), use
+    // the previous parameter as the precision and truncate as necessary.
+    else if (fmtType == ParamType::STRING_WITH_DYNAMIC_PRECISION &&
+                stringBytes > previousPrecision)
+        stringBytes = previousPrecision;
+
+    return stringBytes + sizeof(uint32_t);
+}
+
+/**
  * Wide-character string specialization of the above.
  */
 inline size_t
@@ -341,6 +476,17 @@ getArgSize(const ParamType fmtType,
 
     stringBytes *= sizeof(wchar_t);
     return stringBytes + sizeof(uint32_t);
+}
+
+/**
+ * Specialization for getArgSizes when there are no arguments, i.e. it is
+ * the end of the recursion. (See above for documentation)
+ */
+template<int argNum = 0, unsigned long N, int M>
+inline size_t
+getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t (&)[M])
+{
+    return 0;
 }
 
 /**
@@ -392,17 +538,6 @@ getArgSizes(const std::array<ParamType, N>& argFmtTypes,
                                                     stringSizes[argNum], head)
            + getArgSizes<argNum + 1>(argFmtTypes, previousPrecision,
                                                     stringSizes, rest...);
-}
-
-/**
- * Specialization for getArgSizes when there are no arguments, i.e. it is
- * the end of the recursion. (See above for documentation)
- */
-template<int argNum = 0, unsigned long N, int M>
-inline size_t
-getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t (&)[M])
-{
-    return 0;
 }
 
 

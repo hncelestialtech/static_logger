@@ -1,2 +1,0 @@
-/usr/bin/ar qc libstatic_log.a CMakeFiles/static_log.dir/src/static_log.cc.o CMakeFiles/static_log.dir/src/static_log_backend.cc.o
-/usr/bin/ranlib libstatic_log.a

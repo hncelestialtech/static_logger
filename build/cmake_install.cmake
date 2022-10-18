@@ -44,7 +44,8 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/xhliu/work/staticLog/staticLog/build/tsc_clock/cmake_install.cmake")
+  include("/home/xhliu/work/staticLog/staticLog/build/googletest/cmake_install.cmake")
+  include("/home/xhliu/work/staticLog/staticLog/build/unitest/cmake_install.cmake")
 
 endif()
 

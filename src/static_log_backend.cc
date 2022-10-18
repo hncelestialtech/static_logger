@@ -7,10 +7,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <chrono>
 
 #include "static_log_internal.h"
+#include "static_log_utils.h"
 
 namespace static_log {
 
@@ -50,7 +52,7 @@ StaticLogBackend::~StaticLogBackend()
 }
 
 static void
-convertInt2Str(int ts, char* raw) {
+convertInt2Str(int ts, char*& raw) {
     if (ts < 10) {
         *raw = '0';
         raw++;
@@ -63,9 +65,9 @@ convertInt2Str(int ts, char* raw) {
 }
 
 // [xxxx-xx-xx-hh:mm:ss.xxxxxxxxx]
-static int 
+int 
 generateTimePrefix(uint64_t timestamp, char* raw_data) {
-    const int prefix_len = 32;
+    const int prefix_len = 30;
     const int nano_bits = 9;
     *raw_data = '[';
     raw_data++;
@@ -93,7 +95,84 @@ generateTimePrefix(uint64_t timestamp, char* raw_data) {
         for(int i = 0; i < bits; ++i)
             *raw_data++ = '0';
     }
+    *raw_data = ']';
     return prefix_len;
+}
+
+static int
+process_fmt(
+        const char* fmt, 
+        const int num_params, 
+        const internal::ParamType* param_types, 
+        const char* param_list, 
+        char* log_buffer, size_t buflen)
+{
+    int origin_len = buflen;
+    size_t fmt_list_len = strlen(fmt);
+    int pos = 0;
+    int param_idx = 0;
+    bool success = true;
+    while (pos < fmt_list_len) {
+        if (fmt[pos] != '%') {
+            *log_buffer++ = *fmt;
+            buflen--;
+            continue;
+        } else {
+            ++pos;
+            int fmt_single_len = 1;
+            if (fmt[pos] == '%') {
+                *log_buffer++ = '%';
+                buflen--;
+                ++pos;
+                continue;
+            } else {
+                while (!internal::utils::isTerminal(fmt[pos]))
+                    fmt_single_len++;
+                char* fmt_single;
+                char static_fmt_cache[100];
+                bool dynamic_fmt = false;
+                if (fmt_single_len >= 100) {
+                    memset(static_fmt_cache, 0, 100);
+                    fmt_single = static_fmt_cache;
+                } else {
+                    fmt_single = (char*)malloc(fmt_single_len);
+                    dynamic_fmt = true;
+                }
+                memcpy(fmt_single, fmt + pos, fmt_single_len);
+                pos += fmt_single_len;
+                size_t log_fmt_len = 0;
+
+                if (param_idx < num_params) {
+                    if (param_types[param_idx] > internal::ParamType::NON_STRING) {
+                        uint32_t string_size = *(uint32_t*)param_list;
+                        param_list += sizeof(uint32_t);
+                        char *param_str = (char*)malloc(string_size);
+                        memcpy(param_str, param_list, string_size);
+                        log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
+                        free(param_str);
+                    }
+                    else {
+#pragma GCC diagnostic ignored "-Wformat"
+                        uint64_t param = *(uint64_t*)param_list;
+                        param_list += sizeof(uint64_t);
+                        log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param);
+#pragma GCC diagnostic pop
+                    }
+                    log_buffer += log_fmt_len;
+                    buflen -= log_fmt_len;
+                } else {
+                    fprintf(stderr, "Failed to fmt log");
+                    success = false;
+                    if (dynamic_fmt) 
+                        free(fmt_single);
+                    break;
+                }
+                if (dynamic_fmt) 
+                    free(fmt_single);
+            }
+        }
+    }
+    return success? origin_len - buflen: -1;
 }
 
 #define DEFALT_CACHE_SIZE 1024 * 1024
@@ -106,10 +185,18 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
     char* raw_data = stagingbuffer->peek(&bytes_available);
     if (bytes_available > 0) {
         internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
-        
-
-        memcpy(raw_data, std::to_string(tm_now->tm_year + 1900).c_str(), 4);
-        raw_data += 
+        auto prefix_len = generateTimePrefix(log_entry->timestamp, log_content_cache);
+        reserved -= prefix_len;
+        const char* fmt = log_entry->static_info->format;
+        int len = process_fmt(fmt, log_entry->static_info->num_params, 
+                    log_entry->static_info->param_types,
+                    (char*)log_entry + sizeof(internal::LogEntry),
+                    log_content_cache + prefix_len, reserved - prefix_len);
+        char* log = log_content_cache + prefix_len + len;
+        *log = '\n';
+        if (len != -1) {
+            write(StaticLogBackend::logger_.outfd_, log_content_cache, len + 1);
+        }
     }
 }
 

@@ -43,10 +43,15 @@ enum ParamType:  int32_t {
     STRING = 0
 };
 
-struct LogEntry {
-    LogEntry(const int num_params, const ParamType* param_types): num_params(num_params), param_types(param_types)
+struct StaticInfo {
+    constexpr StaticInfo(
+        const int num_params,
+        const ParamType* param_types,
+        const char* format
+    ):num_params(num_params),
+    param_types(param_types),
+    format(format)
     {}
-
     // Number of arguments required for the log invocation
     const int num_params;
 
@@ -55,8 +60,17 @@ struct LogEntry {
     // printf log message invocation
     const ParamType* param_types;
 
+    // printf format string associated with the log invocation
+    const char* format;
+};
+
+struct LogEntry {
+    LogEntry(const StaticInfo* static_info): static_info(static_info)
+    {}
+
     uint64_t timestamp;
-    uint64_t entry_size;  
+    uint64_t entry_size;
+    const StaticInfo* static_info;
 };
 
 } // namespace internal

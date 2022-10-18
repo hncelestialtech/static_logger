@@ -85,6 +85,51 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+.PHONY : list_install_components/fast
+
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/home/xhliu/tool/cmake-3.24.1-linux-x86_64/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Install the project..."
+	/home/xhliu/tool/cmake-3.24.1-linux-x86_64/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/home/xhliu/tool/cmake-3.24.1-linux-x86_64/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing only the local directory..."
+	/home/xhliu/tool/cmake-3.24.1-linux-x86_64/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/home/xhliu/tool/cmake-3.24.1-linux-x86_64/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
+
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --cyan "Installing the project stripped..."
+	/home/xhliu/tool/cmake-3.24.1-linux-x86_64/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
+
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles /home/xhliu/work/staticLog/staticLog/build//CMakeFiles/progress.marks
@@ -117,78 +162,69 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named static_log
+# Target rules for targets named gmock
 
 # Build rule for target.
-static_log: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 static_log
-.PHONY : static_log
+gmock: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 gmock
+.PHONY : gmock
 
 # fast build rule for target.
-static_log/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/build
-.PHONY : static_log/fast
+gmock/fast:
+	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock.dir/build.make googletest/googlemock/CMakeFiles/gmock.dir/build
+.PHONY : gmock/fast
 
 #=============================================================================
-# Target rules for targets named tscns
+# Target rules for targets named gmock_main
 
 # Build rule for target.
-tscns: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 tscns
-.PHONY : tscns
+gmock_main: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 gmock_main
+.PHONY : gmock_main
 
 # fast build rule for target.
-tscns/fast:
-	$(MAKE) $(MAKESILENT) -f tsc_clock/src/CMakeFiles/tscns.dir/build.make tsc_clock/src/CMakeFiles/tscns.dir/build
-.PHONY : tscns/fast
+gmock_main/fast:
+	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock_main.dir/build.make googletest/googlemock/CMakeFiles/gmock_main.dir/build
+.PHONY : gmock_main/fast
 
-src/static_log.o: src/static_log.cc.o
-.PHONY : src/static_log.o
+#=============================================================================
+# Target rules for targets named gtest
 
-# target to build an object file
-src/static_log.cc.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/src/static_log.cc.o
-.PHONY : src/static_log.cc.o
+# Build rule for target.
+gtest: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 gtest
+.PHONY : gtest
 
-src/static_log.i: src/static_log.cc.i
-.PHONY : src/static_log.i
+# fast build rule for target.
+gtest/fast:
+	$(MAKE) $(MAKESILENT) -f googletest/googletest/CMakeFiles/gtest.dir/build.make googletest/googletest/CMakeFiles/gtest.dir/build
+.PHONY : gtest/fast
 
-# target to preprocess a source file
-src/static_log.cc.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/src/static_log.cc.i
-.PHONY : src/static_log.cc.i
+#=============================================================================
+# Target rules for targets named gtest_main
 
-src/static_log.s: src/static_log.cc.s
-.PHONY : src/static_log.s
+# Build rule for target.
+gtest_main: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 gtest_main
+.PHONY : gtest_main
 
-# target to generate assembly for a file
-src/static_log.cc.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/src/static_log.cc.s
-.PHONY : src/static_log.cc.s
+# fast build rule for target.
+gtest_main/fast:
+	$(MAKE) $(MAKESILENT) -f googletest/googletest/CMakeFiles/gtest_main.dir/build.make googletest/googletest/CMakeFiles/gtest_main.dir/build
+.PHONY : gtest_main/fast
 
-src/static_log_backend.o: src/static_log_backend.cc.o
-.PHONY : src/static_log_backend.o
+#=============================================================================
+# Target rules for targets named test_utils
 
-# target to build an object file
-src/static_log_backend.cc.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/src/static_log_backend.cc.o
-.PHONY : src/static_log_backend.cc.o
+# Build rule for target.
+test_utils: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_utils
+.PHONY : test_utils
 
-src/static_log_backend.i: src/static_log_backend.cc.i
-.PHONY : src/static_log_backend.i
-
-# target to preprocess a source file
-src/static_log_backend.cc.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/src/static_log_backend.cc.i
-.PHONY : src/static_log_backend.cc.i
-
-src/static_log_backend.s: src/static_log_backend.cc.s
-.PHONY : src/static_log_backend.s
-
-# target to generate assembly for a file
-src/static_log_backend.cc.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/static_log.dir/build.make CMakeFiles/static_log.dir/src/static_log_backend.cc.s
-.PHONY : src/static_log_backend.cc.s
+# fast build rule for target.
+test_utils/fast:
+	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/build
+.PHONY : test_utils/fast
 
 # Help Target
 help:
@@ -197,15 +233,16 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... edit_cache"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... install/strip"
+	@echo "... list_install_components"
 	@echo "... rebuild_cache"
-	@echo "... static_log"
-	@echo "... tscns"
-	@echo "... src/static_log.o"
-	@echo "... src/static_log.i"
-	@echo "... src/static_log.s"
-	@echo "... src/static_log_backend.o"
-	@echo "... src/static_log_backend.i"
-	@echo "... src/static_log_backend.s"
+	@echo "... gmock"
+	@echo "... gmock_main"
+	@echo "... gtest"
+	@echo "... gtest_main"
+	@echo "... test_utils"
 .PHONY : help
 
 

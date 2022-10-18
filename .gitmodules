@@ -1,3 +1,6 @@
 [submodule "tsc_clock"]
 	path = tsc_clock
 	url = git@github.com:hncelestialtech/tsc_clock.git
+[submodule "googletest"]
+	path = googletest
+	url = git@github.com:google/googletest.git
