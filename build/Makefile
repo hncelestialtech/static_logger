@@ -226,6 +226,19 @@ test_utils/fast:
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/build
 .PHONY : test_utils/fast
 
+#=============================================================================
+# Target rules for targets named static_log
+
+# Build rule for target.
+static_log: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 static_log
+.PHONY : static_log
+
+# fast build rule for target.
+static_log/fast:
+	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/build
+.PHONY : static_log/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -242,6 +255,7 @@ help:
 	@echo "... gmock_main"
 	@echo "... gtest"
 	@echo "... gtest_main"
+	@echo "... static_log"
 	@echo "... test_utils"
 .PHONY : help
 

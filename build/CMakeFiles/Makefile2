@@ -65,16 +65,19 @@ CMAKE_BINARY_DIR = /home/xhliu/work/staticLog/staticLog/build
 # The main recursive "all" target.
 all: googletest/all
 all: unitest/all
+all: src/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
 preinstall: googletest/preinstall
 preinstall: unitest/preinstall
+preinstall: src/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: googletest/clean
 clean: unitest/clean
+clean: src/clean
 .PHONY : clean
 
 #=============================================================================
@@ -129,6 +132,21 @@ googletest/googletest/clean: googletest/googletest/CMakeFiles/gtest_main.dir/cle
 .PHONY : googletest/googletest/clean
 
 #=============================================================================
+# Directory level rules for directory src
+
+# Recursive "all" directory target.
+src/all: src/CMakeFiles/static_log.dir/all
+.PHONY : src/all
+
+# Recursive "preinstall" directory target.
+src/preinstall:
+.PHONY : src/preinstall
+
+# Recursive "clean" directory target.
+src/clean: src/CMakeFiles/static_log.dir/clean
+.PHONY : src/clean
+
+#=============================================================================
 # Directory level rules for directory unitest
 
 # Recursive "all" directory target.
@@ -173,8 +191,8 @@ googletest/googlemock/CMakeFiles/gmock.dir/clean:
 # Target rules for target googletest/googlemock/CMakeFiles/gmock_main.dir
 
 # All Build rule for target.
-googletest/googlemock/CMakeFiles/gmock_main.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 googletest/googlemock/CMakeFiles/gmock_main.dir/all: googletest/googlemock/CMakeFiles/gmock.dir/all
+googletest/googlemock/CMakeFiles/gmock_main.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock_main.dir/build.make googletest/googlemock/CMakeFiles/gmock_main.dir/depend
 	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock_main.dir/build.make googletest/googlemock/CMakeFiles/gmock_main.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=3,4 "Built target gmock_main"
@@ -255,7 +273,7 @@ googletest/googletest/CMakeFiles/gtest_main.dir/clean:
 unitest/CMakeFiles/test_utils.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/depend
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=9,10 "Built target test_utils"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=12,13 "Built target test_utils"
 .PHONY : unitest/CMakeFiles/test_utils.dir/all
 
 # Build rule for subdir invocation for target.
@@ -273,6 +291,32 @@ test_utils: unitest/CMakeFiles/test_utils.dir/rule
 unitest/CMakeFiles/test_utils.dir/clean:
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/clean
 .PHONY : unitest/CMakeFiles/test_utils.dir/clean
+
+#=============================================================================
+# Target rules for target src/CMakeFiles/static_log.dir
+
+# All Build rule for target.
+src/CMakeFiles/static_log.dir/all:
+	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/depend
+	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=9,10,11 "Built target static_log"
+.PHONY : src/CMakeFiles/static_log.dir/all
+
+# Build rule for subdir invocation for target.
+src/CMakeFiles/static_log.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles 3
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/static_log.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles 0
+.PHONY : src/CMakeFiles/static_log.dir/rule
+
+# Convenience name for target.
+static_log: src/CMakeFiles/static_log.dir/rule
+.PHONY : static_log
+
+# clean rule for target.
+src/CMakeFiles/static_log.dir/clean:
+	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/clean
+.PHONY : src/CMakeFiles/static_log.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

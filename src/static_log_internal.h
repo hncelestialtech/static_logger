@@ -2,7 +2,7 @@
 #define STATIC_LOG_INTERNAL_H
 
 #include <stdint.h>
-
+#include <cstddef>
 #include <array>
 
 namespace static_log {
@@ -47,9 +47,11 @@ struct StaticInfo {
     constexpr StaticInfo(
         const int num_params,
         const ParamType* param_types,
+        const size_t* param_size,
         const char* format
     ):num_params(num_params),
     param_types(param_types),
+    param_size(param_size),
     format(format)
     {}
     // Number of arguments required for the log invocation
@@ -59,6 +61,8 @@ struct StaticInfo {
     // argument list starting at 0) to parameter type as inferred from the
     // printf log message invocation
     const ParamType* param_types;
+
+    const size_t* param_size;
 
     // printf format string associated with the log invocation
     const char* format;

@@ -30,8 +30,8 @@ CMAKE_BUILD_TYPE:STRING=
 //Enable/Disable color output during build.
 CMAKE_COLOR_MAKEFILE:BOOL=ON
 
-//CXX compiler
-CMAKE_CXX_COMPILER:FILEPATH=/usr/local/bin/g++
+//No help, variable specified on the command line.
+CMAKE_CXX_COMPILER:UNINITIALIZED=/usr/local/bin/g++
 
 //A wrapper around 'ar' adding the appropriate '--plugin' option
 // for the GCC compiler
@@ -56,8 +56,8 @@ CMAKE_CXX_FLAGS_RELEASE:STRING=-O3 -DNDEBUG
 //Flags used by the CXX compiler during RELWITHDEBINFO builds.
 CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING=-O2 -g -DNDEBUG
 
-//C compiler
-CMAKE_C_COMPILER:STRING=/usr/local/bin/gcc
+//No help, variable specified on the command line.
+CMAKE_C_COMPILER:UNINITIALIZED=/usr/local/bin/gcc
 
 //A wrapper around 'ar' adding the appropriate '--plugin' option
 // for the GCC compiler
@@ -338,13 +338,16 @@ gtest_hide_internal_symbols:BOOL=OFF
 gtest_main_LIB_DEPENDS:STATIC=general;gtest;
 
 //Value Computed by CMake
-static_log_BINARY_DIR:STATIC=/home/xhliu/work/staticLog/staticLog/build
+static_log_BINARY_DIR:STATIC=/home/xhliu/work/staticLog/staticLog/build/src
 
 //Value Computed by CMake
-static_log_IS_TOP_LEVEL:STATIC=ON
+static_log_IS_TOP_LEVEL:STATIC=OFF
+
+//Dependencies for the target
+static_log_LIB_DEPENDS:STATIC=general;tscns;
 
 //Value Computed by CMake
-static_log_SOURCE_DIR:STATIC=/home/xhliu/work/staticLog/staticLog
+static_log_SOURCE_DIR:STATIC=/home/xhliu/work/staticLog/staticLog/src
 
 //Value Computed by CMake
 unitest_BINARY_DIR:STATIC=/home/xhliu/work/staticLog/staticLog/build/unitest
@@ -500,7 +503,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_NM
 CMAKE_NM-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=5
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=6
 //ADVANCED property for variable: CMAKE_OBJCOPY
 CMAKE_OBJCOPY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_OBJDUMP

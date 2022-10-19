@@ -102,7 +102,9 @@ log(const char *filename,
      **/ \
     static constexpr std::array<internal::ParamType, n_params> param_types = \
                                 internal::utils::analyzeFormatString<n_params>(format); \
-    static constexpr internal::StaticInfo static_info =  StaticInfo(n_params, param_types, format); \
+    static std::array<size_t, n_params> param_size = \
+                                internal::utils::analyzeFmtParamSize(##__VA_ARGS__);    \
+    static constexpr internal::StaticInfo static_info =  StaticInfo(n_params, &param_types, &param_size, format); \
     \
     if (severity > static_log::getLogLevel()) \
         break; \

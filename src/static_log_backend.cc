@@ -99,11 +99,55 @@ generateTimePrefix(uint64_t timestamp, char* raw_data) {
     return prefix_len;
 }
 
+#pragma GCC diagnostic ignored "-Wformat"
+static int
+decodeNonStringFmt(
+    char* __restrict__ log_buffer, 
+    size_t log_buffer_len, 
+    char * fmt, 
+    const char* param, 
+    size_t param_size)
+{
+    int fmt_len; 
+    switch (param_size) {
+    case sizeof(char):
+        {
+            const char* param8 = param;
+            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param8);
+            break;
+        }
+    case sizeof(uint16_t):
+        {
+            const uint16_t* param16 = (uint16_t*)param;
+            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param16);
+            break;
+        }
+    case sizeof(uint32_t):
+        {
+            const uint32_t* param32 = (uint32_t*)param;
+            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param32);
+            break;
+        }
+    case sizeof(uint64_t):
+        {
+            const uint64_t* param64 = (uint64_t*)param;
+            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param64);
+            break;
+        }
+    default:
+        fprintf(stderr, "Failed to decode fmt param, got size %ld", param_size);
+        break;
+    }
+    return fmt_len;
+}
+#pragma GCC diagnostic pop
+
 static int
 process_fmt(
         const char* fmt, 
         const int num_params, 
-        const internal::ParamType* param_types, 
+        const internal::ParamType* param_types,
+        size_t* param_size_list,
         const char* param_list, 
         char* log_buffer, size_t buflen)
 {
@@ -114,7 +158,7 @@ process_fmt(
     bool success = true;
     while (pos < fmt_list_len) {
         if (fmt[pos] != '%') {
-            *log_buffer++ = *fmt;
+            *log_buffer++ = fmt[pos++];
             buflen--;
             continue;
         } else {
@@ -152,11 +196,8 @@ process_fmt(
                         free(param_str);
                     }
                     else {
-#pragma GCC diagnostic ignored "-Wformat"
-                        uint64_t param = *(uint64_t*)param_list;
-                        param_list += sizeof(uint64_t);
-                        log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param);
-#pragma GCC diagnostic pop
+                        decodeNonStringFmt(log_buffer, buflen, fmt_single, param_list, param_size_list[param_idx]);
+                        param_list += param_size_list[param_idx];
                     }
                     log_buffer += log_fmt_len;
                     buflen -= log_fmt_len;
@@ -188,8 +229,10 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
         auto prefix_len = generateTimePrefix(log_entry->timestamp, log_content_cache);
         reserved -= prefix_len;
         const char* fmt = log_entry->static_info->format;
-        int len = process_fmt(fmt, log_entry->static_info->num_params, 
+        int len = process_fmt(fmt, 
+                    log_entry->static_info->num_params, 
                     log_entry->static_info->param_types,
+                    (size_t*)log_entry->static_info->param_size,
                     (char*)log_entry + sizeof(internal::LogEntry),
                     log_content_cache + prefix_len, reserved - prefix_len);
         char* log = log_content_cache + prefix_len + len;

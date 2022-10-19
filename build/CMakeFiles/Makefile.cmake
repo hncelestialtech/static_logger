@@ -51,6 +51,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "/home/xhliu/work/staticLog/staticLog/googletest/googletest/cmake/gtest.pc.in"
   "/home/xhliu/work/staticLog/staticLog/googletest/googletest/cmake/gtest_main.pc.in"
   "/home/xhliu/work/staticLog/staticLog/googletest/googletest/cmake/internal_utils.cmake"
+  "/home/xhliu/work/staticLog/staticLog/src/CMakeLists.txt"
   "/home/xhliu/work/staticLog/staticLog/unitest/CMakeLists.txt"
   )
 
@@ -73,6 +74,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "googletest/googletest/generated/gtest_main.pc"
   "googletest/googletest/CMakeFiles/CMakeDirectoryInformation.cmake"
   "unitest/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "src/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
@@ -82,4 +84,5 @@ set(CMAKE_DEPEND_INFO_FILES
   "googletest/googletest/CMakeFiles/gtest.dir/DependInfo.cmake"
   "googletest/googletest/CMakeFiles/gtest_main.dir/DependInfo.cmake"
   "unitest/CMakeFiles/test_utils.dir/DependInfo.cmake"
+  "src/CMakeFiles/static_log.dir/DependInfo.cmake"
   )

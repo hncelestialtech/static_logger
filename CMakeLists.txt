@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(static_log)
+set(CMAKE_CXX_STANDARD 17)
 # if (${TEST})
     add_subdirectory(googletest)
     add_subdirectory(unitest)
 # endif ()
+add_subdirectory(src)

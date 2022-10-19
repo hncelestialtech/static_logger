@@ -312,6 +312,25 @@ analyzeFormatString(const char (&fmt)[N])
     return analyzeFormatStringHelper(fmt, std::make_index_sequence<NParams>{});
 }
 
+template<typename... T>
+constexpr std::array<size_t, sizeof...(T)>
+analyzeFmtParamSizeHelper(T... arg)
+{
+    return {{sizeof(T)...}};
+}
+
+template<typename... T>
+constexpr std::array<size_t, sizeof...(T)>
+analyzeFmtParamSize(T... args)
+{
+    if constexpr(sizeof...(T) == 0) {
+        return {};
+    }
+    else {
+        return analyzeFmtParamSizeHelper(args...);
+    }
+}
+
 /**
  * Special templated function that takes in an argument T and attempts to
  * convert it to a uint64_t. If the type T is incompatible, than a value
@@ -636,6 +655,19 @@ storeArgument(char **storage,
 }
 
 /**
+ * Specialization of store_arguments that processes no arguments, i.e. this
+ * is the end of the head/rest recursion. See above for full documentation.
+ */
+template<int argNum = 0, unsigned long N, int M>
+inline void
+storeArguments(const std::array<ParamType, N>&,
+                size_t (&stringSizes)[M],
+                char **)
+{
+    // No arguments, do nothing.
+}
+
+/**
  * Given a variable number of arguments to a NANO_LOG (i.e. printf-like)
  * statement, recursively unpack the arguments, store them to a buffer, and
  * bump the buffer pointer.
@@ -676,19 +708,6 @@ storeArguments(const std::array<ParamType, N>& paramTypes,
     // Peel off one argument to store, and then recursively process rest
     storeArgument(storage, head, paramTypes[argNum], stringBytes[argNum]);
     storeArguments<argNum + 1>(paramTypes, stringBytes, storage, rest...);
-}
-
-/**
- * Specialization of store_arguments that processes no arguments, i.e. this
- * is the end of the head/rest recursion. See above for full documentation.
- */
-template<int argNum = 0, unsigned long N, int M>
-inline void
-storeArguments(const std::array<ParamType, N>&,
-                size_t (&stringSizes)[M],
-                char **)
-{
-    // No arguments, do nothing.
 }
 
 #include <cassert>
