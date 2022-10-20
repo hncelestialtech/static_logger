@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 project(static_log)
+add_definitions(-g -O0)
 aux_source_directory(${CMAKE_CURRENT_LIST_DIR}/ src)
 add_library(static_log ${src})
 target_include_directories(static_log PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../tsc_clock/src)

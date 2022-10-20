@@ -239,6 +239,19 @@ static_log/fast:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/build
 .PHONY : static_log/fast
 
+#=============================================================================
+# Target rules for targets named example
+
+# Build rule for target.
+example: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 example
+.PHONY : example
+
+# fast build rule for target.
+example/fast:
+	$(MAKE) $(MAKESILENT) -f example/CMakeFiles/example.dir/build.make example/CMakeFiles/example.dir/build
+.PHONY : example/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -251,6 +264,7 @@ help:
 	@echo "... install/strip"
 	@echo "... list_install_components"
 	@echo "... rebuild_cache"
+	@echo "... example"
 	@echo "... gmock"
 	@echo "... gmock_main"
 	@echo "... gtest"

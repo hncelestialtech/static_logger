@@ -40,3 +40,10 @@
 /home/xhliu/work/staticLog/staticLog/build/src/CMakeFiles/install.dir
 /home/xhliu/work/staticLog/staticLog/build/src/CMakeFiles/install/local.dir
 /home/xhliu/work/staticLog/staticLog/build/src/CMakeFiles/install/strip.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/example.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/edit_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/rebuild_cache.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/list_install_components.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/install.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/install/local.dir
+/home/xhliu/work/staticLog/staticLog/build/example/CMakeFiles/install/strip.dir

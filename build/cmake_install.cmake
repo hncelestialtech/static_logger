@@ -47,6 +47,7 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   include("/home/xhliu/work/staticLog/staticLog/build/googletest/cmake_install.cmake")
   include("/home/xhliu/work/staticLog/staticLog/build/unitest/cmake_install.cmake")
   include("/home/xhliu/work/staticLog/staticLog/build/src/cmake_install.cmake")
+  include("/home/xhliu/work/staticLog/staticLog/build/example/cmake_install.cmake")
 
 endif()
 

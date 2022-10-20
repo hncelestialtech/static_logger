@@ -42,6 +42,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "CMakeFiles/3.24.1/CMakeCCompiler.cmake"
   "CMakeFiles/3.24.1/CMakeCXXCompiler.cmake"
   "CMakeFiles/3.24.1/CMakeSystem.cmake"
+  "/home/xhliu/work/staticLog/staticLog/example/CMakeLists.txt"
   "/home/xhliu/work/staticLog/staticLog/googletest/CMakeLists.txt"
   "/home/xhliu/work/staticLog/staticLog/googletest/googlemock/CMakeLists.txt"
   "/home/xhliu/work/staticLog/staticLog/googletest/googlemock/cmake/gmock.pc.in"
@@ -75,6 +76,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "googletest/googletest/CMakeFiles/CMakeDirectoryInformation.cmake"
   "unitest/CMakeFiles/CMakeDirectoryInformation.cmake"
   "src/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "example/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
@@ -85,4 +87,5 @@ set(CMAKE_DEPEND_INFO_FILES
   "googletest/googletest/CMakeFiles/gtest_main.dir/DependInfo.cmake"
   "unitest/CMakeFiles/test_utils.dir/DependInfo.cmake"
   "src/CMakeFiles/static_log.dir/DependInfo.cmake"
+  "example/CMakeFiles/example.dir/DependInfo.cmake"
   )

@@ -66,19 +66,37 @@ CMAKE_BINARY_DIR = /home/xhliu/work/staticLog/staticLog/build
 all: googletest/all
 all: unitest/all
 all: src/all
+all: example/all
 .PHONY : all
 
 # The main recursive "preinstall" target.
 preinstall: googletest/preinstall
 preinstall: unitest/preinstall
 preinstall: src/preinstall
+preinstall: example/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: googletest/clean
 clean: unitest/clean
 clean: src/clean
+clean: example/clean
 .PHONY : clean
+
+#=============================================================================
+# Directory level rules for directory example
+
+# Recursive "all" directory target.
+example/all: example/CMakeFiles/example.dir/all
+.PHONY : example/all
+
+# Recursive "preinstall" directory target.
+example/preinstall:
+.PHONY : example/preinstall
+
+# Recursive "clean" directory target.
+example/clean: example/CMakeFiles/example.dir/clean
+.PHONY : example/clean
 
 #=============================================================================
 # Directory level rules for directory googletest
@@ -168,7 +186,7 @@ unitest/clean: unitest/CMakeFiles/test_utils.dir/clean
 googletest/googlemock/CMakeFiles/gmock.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock.dir/build.make googletest/googlemock/CMakeFiles/gmock.dir/depend
 	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock.dir/build.make googletest/googlemock/CMakeFiles/gmock.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=1,2 "Built target gmock"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=3,4 "Built target gmock"
 .PHONY : googletest/googlemock/CMakeFiles/gmock.dir/all
 
 # Build rule for subdir invocation for target.
@@ -195,7 +213,7 @@ googletest/googlemock/CMakeFiles/gmock_main.dir/all: googletest/googlemock/CMake
 googletest/googlemock/CMakeFiles/gmock_main.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock_main.dir/build.make googletest/googlemock/CMakeFiles/gmock_main.dir/depend
 	$(MAKE) $(MAKESILENT) -f googletest/googlemock/CMakeFiles/gmock_main.dir/build.make googletest/googlemock/CMakeFiles/gmock_main.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=3,4 "Built target gmock_main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=5,6 "Built target gmock_main"
 .PHONY : googletest/googlemock/CMakeFiles/gmock_main.dir/all
 
 # Build rule for subdir invocation for target.
@@ -221,7 +239,7 @@ googletest/googlemock/CMakeFiles/gmock_main.dir/clean:
 googletest/googletest/CMakeFiles/gtest.dir/all:
 	$(MAKE) $(MAKESILENT) -f googletest/googletest/CMakeFiles/gtest.dir/build.make googletest/googletest/CMakeFiles/gtest.dir/depend
 	$(MAKE) $(MAKESILENT) -f googletest/googletest/CMakeFiles/gtest.dir/build.make googletest/googletest/CMakeFiles/gtest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=5,6 "Built target gtest"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=7,8 "Built target gtest"
 .PHONY : googletest/googletest/CMakeFiles/gtest.dir/all
 
 # Build rule for subdir invocation for target.
@@ -247,7 +265,7 @@ googletest/googletest/CMakeFiles/gtest.dir/clean:
 googletest/googletest/CMakeFiles/gtest_main.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f googletest/googletest/CMakeFiles/gtest_main.dir/build.make googletest/googletest/CMakeFiles/gtest_main.dir/depend
 	$(MAKE) $(MAKESILENT) -f googletest/googletest/CMakeFiles/gtest_main.dir/build.make googletest/googletest/CMakeFiles/gtest_main.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=7,8 "Built target gtest_main"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=9,10 "Built target gtest_main"
 .PHONY : googletest/googletest/CMakeFiles/gtest_main.dir/all
 
 # Build rule for subdir invocation for target.
@@ -273,7 +291,7 @@ googletest/googletest/CMakeFiles/gtest_main.dir/clean:
 unitest/CMakeFiles/test_utils.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/depend
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=12,13 "Built target test_utils"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=14,15 "Built target test_utils"
 .PHONY : unitest/CMakeFiles/test_utils.dir/all
 
 # Build rule for subdir invocation for target.
@@ -299,7 +317,7 @@ unitest/CMakeFiles/test_utils.dir/clean:
 src/CMakeFiles/static_log.dir/all:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=9,10,11 "Built target static_log"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=11,12,13 "Built target static_log"
 .PHONY : src/CMakeFiles/static_log.dir/all
 
 # Build rule for subdir invocation for target.
@@ -317,6 +335,32 @@ static_log: src/CMakeFiles/static_log.dir/rule
 src/CMakeFiles/static_log.dir/clean:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/clean
 .PHONY : src/CMakeFiles/static_log.dir/clean
+
+#=============================================================================
+# Target rules for target example/CMakeFiles/example.dir
+
+# All Build rule for target.
+example/CMakeFiles/example.dir/all: src/CMakeFiles/static_log.dir/all
+	$(MAKE) $(MAKESILENT) -f example/CMakeFiles/example.dir/build.make example/CMakeFiles/example.dir/depend
+	$(MAKE) $(MAKESILENT) -f example/CMakeFiles/example.dir/build.make example/CMakeFiles/example.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=1,2 "Built target example"
+.PHONY : example/CMakeFiles/example.dir/all
+
+# Build rule for subdir invocation for target.
+example/CMakeFiles/example.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles 5
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 example/CMakeFiles/example.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles 0
+.PHONY : example/CMakeFiles/example.dir/rule
+
+# Convenience name for target.
+example: example/CMakeFiles/example.dir/rule
+.PHONY : example
+
+# clean rule for target.
+example/CMakeFiles/example.dir/clean:
+	$(MAKE) $(MAKESILENT) -f example/CMakeFiles/example.dir/build.make example/CMakeFiles/example.dir/clean
+.PHONY : example/CMakeFiles/example.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

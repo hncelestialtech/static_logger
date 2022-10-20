@@ -47,11 +47,9 @@ struct StaticInfo {
     constexpr StaticInfo(
         const int num_params,
         const ParamType* param_types,
-        const size_t* param_size,
         const char* format
     ):num_params(num_params),
     param_types(param_types),
-    param_size(param_size),
     format(format)
     {}
     // Number of arguments required for the log invocation
@@ -62,19 +60,20 @@ struct StaticInfo {
     // printf log message invocation
     const ParamType* param_types;
 
-    const size_t* param_size;
-
     // printf format string associated with the log invocation
     const char* format;
 };
 
 struct LogEntry {
-    LogEntry(const StaticInfo* static_info): static_info(static_info)
+    LogEntry(const StaticInfo* static_info, const size_t* param_size): 
+        static_info(static_info),
+        param_size(param_size)
     {}
 
     uint64_t timestamp;
     uint64_t entry_size;
     const StaticInfo* static_info;
+    const size_t* param_size;
 };
 
 } // namespace internal

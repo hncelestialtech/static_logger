@@ -277,7 +277,8 @@ private:
         }
     }
     
-    void io_poll_backend();
+    void ioPoll();
+
 private:
     static __thread StagingBuffer *staging_buffer_;
 

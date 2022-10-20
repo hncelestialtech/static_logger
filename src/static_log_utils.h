@@ -331,6 +331,13 @@ analyzeFmtParamSize(T... args)
     }
 }
 
+template<typename... T>
+constexpr size_t
+getParamSize(T... args)
+{
+    return sizeof...(T);
+}
+
 /**
  * Special templated function that takes in an argument T and attempts to
  * convert it to a uint64_t. If the type T is incompatible, than a value

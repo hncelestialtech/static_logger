@@ -13,13 +13,14 @@
 
 #include "static_log_internal.h"
 #include "static_log_utils.h"
+#include "tsc_clock.h"
 
 namespace static_log {
 
 namespace details {
 __thread StagingBuffer *StaticLogBackend::staging_buffer_ = nullptr;
 StaticLogBackend StaticLogBackend::logger_;
-
+thread_local StaticLogBackend::StagingBufferDestroyer StaticLogBackend::destroyer_{};
 #define DEFAULT_INTERVAL 10
 uint32_t poll_interval_no_work = DEFAULT_INTERVAL;
 
@@ -42,12 +43,12 @@ StaticLogBackend::StaticLogBackend():
         exit(-1);
     }
 
-    fdflush_ = std::thread(&StaticLogBackend::io_poll_backend, this);
+    fdflush_ = std::thread(&StaticLogBackend::ioPoll, this);
 }
 
 StaticLogBackend::~StaticLogBackend()
 {
-    is_stop_ = false;
+    is_stop_ = true;
     fdflush_.join();
 }
 
@@ -67,7 +68,7 @@ convertInt2Str(int ts, char*& raw) {
 // [xxxx-xx-xx-hh:mm:ss.xxxxxxxxx]
 int 
 generateTimePrefix(uint64_t timestamp, char* raw_data) {
-    const int prefix_len = 30;
+    const int prefix_len = 31;
     const int nano_bits = 9;
     *raw_data = '[';
     raw_data++;
@@ -76,7 +77,7 @@ generateTimePrefix(uint64_t timestamp, char* raw_data) {
     struct tm* tm_now = localtime((time_t*)&timestamp);
     memcpy(raw_data, std::to_string(tm_now->tm_year + 1900).c_str(), 4);
     raw_data += 4;
-    *raw_data = '-';
+    *raw_data++ = '-';
     convertInt2Str(tm_now->tm_mon + 1, raw_data);
     *raw_data++ = '-';
     convertInt2Str(tm_now->tm_mday, raw_data);
@@ -108,34 +109,68 @@ decodeNonStringFmt(
     const char* param, 
     size_t param_size)
 {
-    int fmt_len; 
+    int fmt_len = 0;
+    char terminal_flag = fmt[strlen(fmt) - 1];
     switch (param_size) {
     case sizeof(char):
         {
             const char* param8 = param;
-            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param8);
+            if (terminal_flag == 'c')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int8_t*)param8);
+            else if (terminal_flag == 'd' || terminal_flag == 'i')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int8_t*)param8);
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint8_t*)param8);
+            else 
+                fprintf(stderr, "Failed to parse fmt with a one bytes long param\n");
             break;
         }
     case sizeof(uint16_t):
         {
             const uint16_t* param16 = (uint16_t*)param;
-            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param16);
+            if (terminal_flag == 'd' || terminal_flag == 'i')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int16_t*)param16);
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint16_t*)param16);
+            else 
+                fprintf(stderr, "Failed to parse fmt with a two bytes long param\n");
+            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *param16);
             break;
         }
     case sizeof(uint32_t):
         {
             const uint32_t* param32 = (uint32_t*)param;
-            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param32);
+            if (terminal_flag == 'd' || terminal_flag == 'i')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int32_t*)param32);
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint32_t*)param32);
+            else if (terminal_flag == 'f' || terminal_flag == 'F' || terminal_flag == 'e' ||terminal_flag == 'e' || 
+                terminal_flag == 'E' || terminal_flag == 'g' || terminal_flag == 'G'|| terminal_flag == 'a' ||terminal_flag == 'A') {
+                static_assert(sizeof(float) == sizeof(uint32_t));
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(float*)param32);
+            }            
+            else 
+                fprintf(stderr, "Failed to parse fmt with a two bytes long param\n");
             break;
         }
     case sizeof(uint64_t):
         {
             const uint64_t* param64 = (uint64_t*)param;
-            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, param64);
+            if (terminal_flag == 'd' || terminal_flag == 'i')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int64_t*)param64);
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint64_t*)param64);
+            else if (terminal_flag == 'f' || terminal_flag == 'F' || terminal_flag == 'e' ||terminal_flag == 'e' || 
+                terminal_flag == 'E' || terminal_flag == 'g' || terminal_flag == 'G'|| terminal_flag == 'a' ||terminal_flag == 'A') {
+                static_assert(sizeof(double) == sizeof(uint64_t));
+                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(double*)param64);
+            }
+            else
+                fprintf(stderr, "Failed to parse fmt with a two bytes long param\n");
             break;
         }
     default:
-        fprintf(stderr, "Failed to decode fmt param, got size %ld", param_size);
+        fprintf(stderr, "Failed to decode fmt param, got size %ld\n", param_size);
         break;
     }
     return fmt_len;
@@ -151,6 +186,7 @@ process_fmt(
         const char* param_list, 
         char* log_buffer, size_t buflen)
 {
+    char* origin_buffer = log_buffer;
     int origin_len = buflen;
     size_t fmt_list_len = strlen(fmt);
     int pos = 0;
@@ -170,20 +206,24 @@ process_fmt(
                 ++pos;
                 continue;
             } else {
-                while (!internal::utils::isTerminal(fmt[pos]))
+                int fmt_start_pos = pos - 1;
+                while (!internal::utils::isTerminal(fmt[pos])) {
                     fmt_single_len++;
+                    pos++;
+                }
+                fmt_single_len++;
+                pos++;
                 char* fmt_single;
                 char static_fmt_cache[100];
                 bool dynamic_fmt = false;
-                if (fmt_single_len >= 100) {
+                if (fmt_single_len < 100) {
                     memset(static_fmt_cache, 0, 100);
                     fmt_single = static_fmt_cache;
                 } else {
                     fmt_single = (char*)malloc(fmt_single_len);
                     dynamic_fmt = true;
                 }
-                memcpy(fmt_single, fmt + pos, fmt_single_len);
-                pos += fmt_single_len;
+                memcpy(fmt_single, fmt + fmt_start_pos, fmt_single_len);
                 size_t log_fmt_len = 0;
 
                 if (param_idx < num_params) {
@@ -192,17 +232,19 @@ process_fmt(
                         param_list += sizeof(uint32_t);
                         char *param_str = (char*)malloc(string_size);
                         memcpy(param_str, param_list, string_size);
+                        param_str[string_size] = '\0';
                         log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
                         free(param_str);
                     }
                     else {
-                        decodeNonStringFmt(log_buffer, buflen, fmt_single, param_list, param_size_list[param_idx]);
+                        log_fmt_len = decodeNonStringFmt(log_buffer, buflen, fmt_single, param_list, param_size_list[param_idx]);
                         param_list += param_size_list[param_idx];
                     }
                     log_buffer += log_fmt_len;
                     buflen -= log_fmt_len;
+                    param_idx++;
                 } else {
-                    fprintf(stderr, "Failed to fmt log");
+                    fprintf(stderr, "Failed to fmt log\n");
                     success = false;
                     if (dynamic_fmt) 
                         free(fmt_single);
@@ -226,43 +268,59 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
     char* raw_data = stagingbuffer->peek(&bytes_available);
     if (bytes_available > 0) {
         internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
+        log_entry->timestamp = rdns();
         auto prefix_len = generateTimePrefix(log_entry->timestamp, log_content_cache);
+        log_content_cache[prefix_len] = '\0';
         reserved -= prefix_len;
         const char* fmt = log_entry->static_info->format;
         int len = process_fmt(fmt, 
                     log_entry->static_info->num_params, 
                     log_entry->static_info->param_types,
-                    (size_t*)log_entry->static_info->param_size,
+                    (size_t*)log_entry->param_size,
                     (char*)log_entry + sizeof(internal::LogEntry),
                     log_content_cache + prefix_len, reserved - prefix_len);
         char* log = log_content_cache + prefix_len + len;
         *log = '\n';
         if (len != -1) {
-            write(StaticLogBackend::logger_.outfd_, log_content_cache, len + 1);
+            write(StaticLogBackend::logger_.outfd_, log_content_cache, prefix_len + len + 1);
         }
+        stagingbuffer->consume(log_entry->entry_size);
     }
 }
 
 void 
-StaticLogBackend::io_poll_backend()
+StaticLogBackend::ioPoll()
 {
     int bf_idx = 0;
     while (!is_stop_) {
         while(!thread_buffers_.empty()) {
             auto thread_buffer = thread_buffers_[bf_idx];
-            if (thread_buffer->isAlive()) {
+            if (thread_buffer->isAlive()) 
                 processLogBuffer(thread_buffer);
-            }
             else {
                 thread_buffers_.erase(thread_buffers_.begin() + bf_idx);
                 if (thread_buffers_.empty()) 
                     break;
                 bf_idx--;
             }
-            bf_idx++;
+            bf_idx = (bf_idx + 1) % thread_buffers_.size();
         }
         std::unique_lock<std::mutex> lock(cond_mutex_);
         wake_up_cond_.wait_for(lock, std::chrono::microseconds(poll_interval_no_work));
+    }
+
+    bf_idx = 0;
+    while (!thread_buffers_.empty()) {
+        auto thread_buffer = thread_buffers_[bf_idx];
+        if (thread_buffer->isAlive()) 
+            processLogBuffer(thread_buffer);
+        else {
+            thread_buffers_.erase(thread_buffers_.begin() + bf_idx);
+            if (thread_buffers_.empty()) 
+                break;
+            bf_idx--;
+        }
+        bf_idx = (bf_idx + 1) % thread_buffers_.size();
     }
 }
 

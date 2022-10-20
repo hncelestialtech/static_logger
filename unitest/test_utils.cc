@@ -216,7 +216,7 @@ decodeNonStringFmt(
             break;
         }
     default:
-        fprintf(stderr, "Failed to decode fmt param, got size %ld", param_size);
+        fprintf(stderr, "Failed to decode fmt param, got size %ld\n", param_size);
         break;
     }
     return fmt_len;
@@ -278,6 +278,7 @@ process_fmt(
                         param_list += sizeof(uint32_t);
                         char *param_str = (char*)malloc(string_size);
                         memcpy(param_str, param_list, string_size);
+                        param_str[string_size] = '\0';
                         log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
                         free(param_str);
                     }
