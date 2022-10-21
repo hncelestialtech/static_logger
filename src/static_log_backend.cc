@@ -8,8 +8,11 @@
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <sched.h>
 
 #include <chrono>
+#include <iostream>
 
 #include "static_log_internal.h"
 #include "static_log_utils.h"
@@ -44,6 +47,7 @@ StaticLogBackend::StaticLogBackend():
     }
 
     fdflush_ = std::thread(&StaticLogBackend::ioPoll, this);
+
 }
 
 StaticLogBackend::~StaticLogBackend()
@@ -288,40 +292,60 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
     }
 }
 
+void
+StaticLogBackend::walkLogBuffer()
+{
+    while(!is_stop_ || !thread_buffers_.empty()) {
+        std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
+        for(int i = 0; i < thread_buffers_.size(); ++i) {
+            auto thread_buffer = thread_buffers_[i];
+            if (thread_buffer->isAlive()) {
+                uint64_t bytes_available = 0;
+                char* raw_data = thread_buffer->peek(&bytes_available);
+                if (bytes_available > 0) {
+                    internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
+                    if (log_entry->timestamp < earliest_thead_buffer.first) {
+                        earliest_thead_buffer.first = log_entry->timestamp;
+                        earliest_thead_buffer.second = thread_buffer;
+                    }
+                }
+            }
+            else {
+                delete thread_buffer;
+                thread_buffers_.erase(thread_buffers_.begin() + i);
+                if (thread_buffers_.empty())
+                    break;
+                --i;
+            }
+        }
+        if (earliest_thead_buffer.first != UINT64_MAX) {
+            processLogBuffer(earliest_thead_buffer.second);
+        }
+    }
+}
+
+static int
+threadBindCore(int i)
+{  
+    cpu_set_t mask;  
+    CPU_ZERO(&mask);  
+  
+    CPU_SET(i,&mask);  
+  
+    if(-1 == pthread_setaffinity_np(pthread_self() ,sizeof(mask),&mask))  
+    {  
+        fprintf(stderr, "pthread_setaffinity_np erro\n");  
+        return -1;  
+    }  
+    return 0;  
+} 
+
 void 
 StaticLogBackend::ioPoll()
 {
-    int bf_idx = 0;
-    while (!is_stop_) {
-        while(!thread_buffers_.empty()) {
-            auto thread_buffer = thread_buffers_[bf_idx];
-            if (thread_buffer->isAlive()) 
-                processLogBuffer(thread_buffer);
-            else {
-                thread_buffers_.erase(thread_buffers_.begin() + bf_idx);
-                if (thread_buffers_.empty()) 
-                    break;
-                bf_idx--;
-            }
-            bf_idx = (bf_idx + 1) % thread_buffers_.size();
-        }
-        std::unique_lock<std::mutex> lock(cond_mutex_);
-        wake_up_cond_.wait_for(lock, std::chrono::microseconds(poll_interval_no_work));
-    }
+    threadBindCore(1);
 
-    bf_idx = 0;
-    while (!thread_buffers_.empty()) {
-        auto thread_buffer = thread_buffers_[bf_idx];
-        if (thread_buffer->isAlive()) 
-            processLogBuffer(thread_buffer);
-        else {
-            thread_buffers_.erase(thread_buffers_.begin() + bf_idx);
-            if (thread_buffers_.empty()) 
-                break;
-            bf_idx--;
-        }
-        bf_idx = (bf_idx + 1) % thread_buffers_.size();
-    }
+    walkLogBuffer();
 }
 
 /**

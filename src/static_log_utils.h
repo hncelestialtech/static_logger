@@ -456,7 +456,7 @@ getArgSize(const ParamType fmtType,
         return sizeof(void*);
 
     stringBytes = strlen(str);
-    uint32_t fmtLength = static_cast<uint32_t>(fmtType);
+    uint32_t fmtLength = static_cast<uint32_t>(stringBytes);
 
     // Strings with static length specifiers (ex %.10s), have non-negative
     // ParamTypes equal to the static length. Thus, we use that value to

@@ -169,6 +169,7 @@ src/clean: src/CMakeFiles/static_log.dir/clean
 
 # Recursive "all" directory target.
 unitest/all: unitest/CMakeFiles/test_utils.dir/all
+unitest/all: unitest/CMakeFiles/perf_str.dir/all
 .PHONY : unitest/all
 
 # Recursive "preinstall" directory target.
@@ -177,6 +178,7 @@ unitest/preinstall:
 
 # Recursive "clean" directory target.
 unitest/clean: unitest/CMakeFiles/test_utils.dir/clean
+unitest/clean: unitest/CMakeFiles/perf_str.dir/clean
 .PHONY : unitest/clean
 
 #=============================================================================
@@ -291,7 +293,7 @@ googletest/googletest/CMakeFiles/gtest_main.dir/clean:
 unitest/CMakeFiles/test_utils.dir/all: googletest/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/depend
 	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/test_utils.dir/build.make unitest/CMakeFiles/test_utils.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=14,15 "Built target test_utils"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=16,17 "Built target test_utils"
 .PHONY : unitest/CMakeFiles/test_utils.dir/all
 
 # Build rule for subdir invocation for target.
@@ -311,13 +313,39 @@ unitest/CMakeFiles/test_utils.dir/clean:
 .PHONY : unitest/CMakeFiles/test_utils.dir/clean
 
 #=============================================================================
+# Target rules for target unitest/CMakeFiles/perf_str.dir
+
+# All Build rule for target.
+unitest/CMakeFiles/perf_str.dir/all: src/CMakeFiles/static_log.dir/all
+	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/perf_str.dir/build.make unitest/CMakeFiles/perf_str.dir/depend
+	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/perf_str.dir/build.make unitest/CMakeFiles/perf_str.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=11,12 "Built target perf_str"
+.PHONY : unitest/CMakeFiles/perf_str.dir/all
+
+# Build rule for subdir invocation for target.
+unitest/CMakeFiles/perf_str.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles 5
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 unitest/CMakeFiles/perf_str.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/xhliu/work/staticLog/staticLog/build/CMakeFiles 0
+.PHONY : unitest/CMakeFiles/perf_str.dir/rule
+
+# Convenience name for target.
+perf_str: unitest/CMakeFiles/perf_str.dir/rule
+.PHONY : perf_str
+
+# clean rule for target.
+unitest/CMakeFiles/perf_str.dir/clean:
+	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/perf_str.dir/build.make unitest/CMakeFiles/perf_str.dir/clean
+.PHONY : unitest/CMakeFiles/perf_str.dir/clean
+
+#=============================================================================
 # Target rules for target src/CMakeFiles/static_log.dir
 
 # All Build rule for target.
 src/CMakeFiles/static_log.dir/all:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/depend
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/static_log.dir/build.make src/CMakeFiles/static_log.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=11,12,13 "Built target static_log"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/xhliu/work/staticLog/staticLog/build/CMakeFiles --progress-num=13,14,15 "Built target static_log"
 .PHONY : src/CMakeFiles/static_log.dir/all
 
 # Build rule for subdir invocation for target.

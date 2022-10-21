@@ -9,6 +9,7 @@
 #include <vector>
 #include <condition_variable>
 #include <thread>
+#include <iostream>
 
 #include "static_log.h"
 #include "static_log_common.h"
@@ -126,7 +127,7 @@ public:
     }
 
     bool isAlive() const {
-        return should_deallocate_;
+        return !should_deallocate_ || consumer_pos_ != producer_pos_;
     }
 
     StagingBuffer(const StagingBuffer&)=delete;
@@ -278,6 +279,8 @@ private:
     }
     
     void ioPoll();
+
+    void walkLogBuffer();
 
 private:
     static __thread StagingBuffer *staging_buffer_;

@@ -227,6 +227,19 @@ test_utils/fast:
 .PHONY : test_utils/fast
 
 #=============================================================================
+# Target rules for targets named perf_str
+
+# Build rule for target.
+perf_str: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 perf_str
+.PHONY : perf_str
+
+# fast build rule for target.
+perf_str/fast:
+	$(MAKE) $(MAKESILENT) -f unitest/CMakeFiles/perf_str.dir/build.make unitest/CMakeFiles/perf_str.dir/build
+.PHONY : perf_str/fast
+
+#=============================================================================
 # Target rules for targets named static_log
 
 # Build rule for target.
@@ -269,6 +282,7 @@ help:
 	@echo "... gmock_main"
 	@echo "... gtest"
 	@echo "... gtest_main"
+	@echo "... perf_str"
 	@echo "... static_log"
 	@echo "... test_utils"
 .PHONY : help

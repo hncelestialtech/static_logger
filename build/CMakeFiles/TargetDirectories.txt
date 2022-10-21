@@ -27,6 +27,7 @@
 /home/xhliu/work/staticLog/staticLog/build/googletest/googletest/CMakeFiles/install/local.dir
 /home/xhliu/work/staticLog/staticLog/build/googletest/googletest/CMakeFiles/install/strip.dir
 /home/xhliu/work/staticLog/staticLog/build/unitest/CMakeFiles/test_utils.dir
+/home/xhliu/work/staticLog/staticLog/build/unitest/CMakeFiles/perf_str.dir
 /home/xhliu/work/staticLog/staticLog/build/unitest/CMakeFiles/edit_cache.dir
 /home/xhliu/work/staticLog/staticLog/build/unitest/CMakeFiles/rebuild_cache.dir
 /home/xhliu/work/staticLog/staticLog/build/unitest/CMakeFiles/list_install_components.dir

@@ -86,6 +86,7 @@ set(CMAKE_DEPEND_INFO_FILES
   "googletest/googletest/CMakeFiles/gtest.dir/DependInfo.cmake"
   "googletest/googletest/CMakeFiles/gtest_main.dir/DependInfo.cmake"
   "unitest/CMakeFiles/test_utils.dir/DependInfo.cmake"
+  "unitest/CMakeFiles/perf_str.dir/DependInfo.cmake"
   "src/CMakeFiles/static_log.dir/DependInfo.cmake"
   "example/CMakeFiles/example.dir/DependInfo.cmake"
   )
