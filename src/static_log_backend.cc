@@ -38,6 +38,7 @@ StaticLogBackend::StaticLogBackend():
     next_buffer_id_(0),
     thread_buffers_(),
     is_stop_(false),
+    is_exit_(false),
     outfd_(-1)
 {
     const char * logfile = DEFAULT_LOGFILE;
@@ -54,8 +55,10 @@ StaticLogBackend::StaticLogBackend():
 StaticLogBackend::~StaticLogBackend()
 {
     is_stop_ = true;
-    fdflush_.join();
-    close(outfd_);
+    if(fdflush_.joinable())
+        fdflush_.join();
+    if (outfd_ != -1)
+        close(outfd_);
 }
 
 static void
@@ -290,8 +293,8 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
         *log = '\n';
         if (len != -1 && outfd_ != -1) {
             write(StaticLogBackend::logger_.outfd_, log_content_cache, prefix_len + len + 1);
+            stagingbuffer->consume(log_entry->entry_size);
         }
-        stagingbuffer->consume(log_entry->entry_size);
     }
 }
 
@@ -319,6 +322,7 @@ StaticLogBackend::ioPoll()
     // walkLogBuffer();
     std::unique_lock<std::mutex> guard(buffer_mutex_);
     while(!is_stop_ || !thread_buffers_.empty()) {
+        if (is_exit_) return;
         guard.unlock();
         std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
         guard.lock();

@@ -204,16 +204,21 @@ public:
     {
         std::unique_lock<std::mutex> lock(logger_.buffer_mutex_);
         logger_.is_stop_ = true;
+        logger_.is_exit_ = true;
+        lock.unlock();
         logger_.fdflush_.join();
+        lock.lock();
+        logger_.is_exit_ = false;
         if (logger_.outfd_ != -1) {
             close(logger_.outfd_);
         }
         logger_.outfd_ = -1;
-        logger_.outfd_ = open(log_file, O_RDWR|O_CLOEXEC, 0666);
+        logger_.outfd_ = open(log_file, O_RDWR|O_CREAT, 0666);
         if(logger_.outfd_ == -1) {
             fprintf(stderr, "%s: Failed to open file %s\n", __FUNCTION__, log_file);
             return;
         }
+        lock.unlock();
         logger_.fdflush_ = std::move(std::thread(&StaticLogBackend::ioPoll, &logger_));
     }
 
@@ -332,6 +337,9 @@ private:
 
     // Flag signaling the thread to stop running.
     bool is_stop_;
+
+    // Only used in setlogFile
+    bool is_exit_;
 
     std::thread fdflush_;
 
