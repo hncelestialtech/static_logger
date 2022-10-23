@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <array>
 
+#include "static_log.h"
+
 namespace static_log {
 
 namespace internal {
@@ -47,10 +49,16 @@ struct StaticInfo {
     constexpr StaticInfo(
         const int num_params,
         const ParamType* param_types,
-        const char* format
+        const char* format,
+        const static_log::LogLevels::LogLevel log_level,
+        const char* function_name,
+        const uint64_t line
     ):num_params(num_params),
     param_types(param_types),
-    format(format)
+    format(format),
+    log_level(log_level),
+    function_name(function_name),
+    line(line)
     {}
     // Number of arguments required for the log invocation
     const int num_params;
@@ -62,6 +70,12 @@ struct StaticInfo {
 
     // printf format string associated with the log invocation
     const char* format;
+
+    static_log::LogLevels::LogLevel log_level;    
+    
+    const char* function_name;
+
+    const uint64_t line;
 };
 
 struct LogEntry {

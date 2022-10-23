@@ -21,6 +21,18 @@
 
 namespace static_log {
 
+namespace internals {
+
+static const char* log_level_str[] = {
+    "non",
+    "error",
+    "warn",
+    "notice",
+    "debug"
+};
+
+} // internals
+
 namespace details {
 __thread StagingBuffer *StaticLogBackend::staging_buffer_ = nullptr;
 StaticLogBackend StaticLogBackend::logger_;
@@ -106,6 +118,37 @@ generateTimePrefix(uint64_t timestamp, char* raw_data) {
             *raw_data++ = '0';
     }
     *raw_data = ']';
+    return prefix_len;
+}
+
+static int
+generateCallInfoPrefix(const static_log::internal::StaticInfo* static_info, char* raw)
+{
+    int prefix_len = 0;
+    *raw++ = '[';
+    prefix_len++;
+    auto level_len = strlen(internals::log_level_str[(uint32_t)static_info->log_level]);
+    memcpy(raw, internals::log_level_str[(uint32_t)static_info->log_level], level_len);
+    raw += level_len;
+    prefix_len += level_len;
+    *raw++ = ']';
+    prefix_len++;
+    *raw++ = '[';
+    prefix_len++;
+    auto fn_len = strlen(static_info->function_name);
+    memcpy(raw, static_info->function_name, fn_len);
+    raw += fn_len;
+    prefix_len += strlen(static_info->function_name);
+    *raw++ = ']';
+    prefix_len++;
+    *raw++ = '[';
+    prefix_len++;
+    auto line_len = strlen(std::to_string(static_info->line).c_str());
+    memcpy(raw, std::to_string(static_info->line).c_str(), line_len);
+    prefix_len += line_len;
+    raw += line_len;
+    *raw++ = ']';
+    prefix_len++;
     return prefix_len;
 }
 
@@ -279,20 +322,22 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
     if (bytes_available > 0) {
         internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
         log_entry->timestamp = rdns();
-        auto prefix_len = generateTimePrefix(log_entry->timestamp, log_content_cache);
-        log_content_cache[prefix_len] = '\0';
-        reserved -= prefix_len;
+        auto prefix_ts_len = generateTimePrefix(log_entry->timestamp, log_content_cache);
+        // log_content_cache[prefix_len] = '\0';
+        reserved -= prefix_ts_len;
+        auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_content_cache + prefix_ts_len);
+        reserved -= prefix_callinfo_len;
         const char* fmt = log_entry->static_info->format;
         int len = process_fmt(fmt, 
                     log_entry->static_info->num_params, 
                     log_entry->static_info->param_types,
                     (size_t*)log_entry->param_size,
                     (char*)log_entry + sizeof(internal::LogEntry),
-                    log_content_cache + prefix_len, reserved - prefix_len);
-        char* log = log_content_cache + prefix_len + len;
+                    log_content_cache + prefix_ts_len + prefix_callinfo_len, reserved);
+        char* log = log_content_cache + prefix_ts_len + prefix_callinfo_len + len;
         *log = '\n';
         if (len != -1 && outfd_ != -1) {
-            write(StaticLogBackend::logger_.outfd_, log_content_cache, prefix_len + len + 1);
+            write(StaticLogBackend::logger_.outfd_, log_content_cache, prefix_ts_len + prefix_callinfo_len + len + 1);
             stagingbuffer->consume(log_entry->entry_size);
         }
     }

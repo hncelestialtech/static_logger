@@ -36,7 +36,7 @@ extern volatile uint64_t log_id;
     static constexpr std::array<static_log::internal::ParamType, n_params> param_types = \
                                 static_log::internal::utils::analyzeFormatString<n_params>(format); \
     static constexpr static_log::internal::StaticInfo static_info =  \
-                            static_log::internal::StaticInfo(n_params, param_types.data(), format); \
+                            static_log::internal::StaticInfo(n_params, param_types.data(), format, severity, __FUNCTION__, __LINE__); \
     \
     if (severity > static_log::getLogLevel()) \
         break; \
