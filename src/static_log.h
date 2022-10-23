@@ -1,6 +1,8 @@
 #ifndef STATIC_LOG_H
 #define STATIC_LOG_H
 
+#include <stdint.h>
+
 namespace static_log {
 
 // This extra namespace allows users to import only the LogLevel namespace
@@ -35,6 +37,8 @@ namespace LogLevels {
         kNUM_LOG_LEVELS // must be the last element in the enum
     };
 };
+
+extern uint32_t io_internal;
 
 // User API
 

@@ -13,6 +13,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <chrono>
 
 #include "static_log_internal.h"
 #include "static_log_utils.h"
@@ -54,6 +55,7 @@ StaticLogBackend::~StaticLogBackend()
 {
     is_stop_ = true;
     fdflush_.join();
+    close(outfd_);
 }
 
 static void
@@ -239,6 +241,7 @@ process_fmt(
                         param_str[string_size] = '\0';
                         log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
                         free(param_str);
+                        param_list += string_size;
                     }
                     else {
                         log_fmt_len = decodeNonStringFmt(log_buffer, buflen, fmt_single, param_list, param_size_list[param_idx]);
@@ -292,38 +295,6 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
     }
 }
 
-void
-StaticLogBackend::walkLogBuffer()
-{
-    while(!is_stop_ || !thread_buffers_.empty()) {
-        std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
-        for(int i = 0; i < thread_buffers_.size(); ++i) {
-            auto thread_buffer = thread_buffers_[i];
-            if (thread_buffer->isAlive()) {
-                uint64_t bytes_available = 0;
-                char* raw_data = thread_buffer->peek(&bytes_available);
-                if (bytes_available > 0) {
-                    internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
-                    if (log_entry->timestamp < earliest_thead_buffer.first) {
-                        earliest_thead_buffer.first = log_entry->timestamp;
-                        earliest_thead_buffer.second = thread_buffer;
-                    }
-                }
-            }
-            else {
-                delete thread_buffer;
-                thread_buffers_.erase(thread_buffers_.begin() + i);
-                if (thread_buffers_.empty())
-                    break;
-                --i;
-            }
-        }
-        if (earliest_thead_buffer.first != UINT64_MAX) {
-            processLogBuffer(earliest_thead_buffer.second);
-        }
-    }
-}
-
 static int
 threadBindCore(int i)
 {  
@@ -345,7 +316,39 @@ StaticLogBackend::ioPoll()
 {
     threadBindCore(1);
 
-    walkLogBuffer();
+    // walkLogBuffer();
+    std::unique_lock<std::mutex> guard(buffer_mutex_);
+    while(!is_stop_ || !thread_buffers_.empty()) {
+        guard.unlock();
+        std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
+        guard.lock();
+        for(int i = 0; i < thread_buffers_.size(); ++i) {
+            auto thread_buffer = thread_buffers_[i];
+            if (!thread_buffer->checkCanDelete()) {
+                uint64_t bytes_available = 0;
+                char* raw_data = thread_buffer->peek(&bytes_available);
+                if (bytes_available > 0) {
+                    internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
+                    if (log_entry->timestamp < earliest_thead_buffer.first) {
+                        earliest_thead_buffer.first = log_entry->timestamp;
+                        earliest_thead_buffer.second = thread_buffer;
+                    }
+                }
+            }
+            else {
+                delete thread_buffer;
+                thread_buffers_.erase(thread_buffers_.begin() + i);
+                if (thread_buffers_.empty())
+                    break;
+                --i;
+            }
+        }
+        if (earliest_thead_buffer.first != UINT64_MAX) {
+            processLogBuffer(earliest_thead_buffer.second);
+        } else {
+            wake_up_cond_.wait_for(guard, std::chrono::microseconds(io_internal));
+        }
+    }
 }
 
 /**
@@ -371,7 +374,7 @@ StaticLogBackend::ioPoll()
 char *
 StagingBuffer::reserveSpaceInternal(size_t nbytes, bool blocking) 
 {
-    const char *end_of_buffer = storage_ + STAGING_BUFFER_SIZE;
+    const char *end_of_buffer = storage_ + kSTAGING_BUFFER_SIZE;
 
     // There's a subtle point here, all the checks for remaining
     // space are strictly < or >, not <= or => because if we allow

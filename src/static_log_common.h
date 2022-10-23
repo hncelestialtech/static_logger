@@ -15,7 +15,7 @@ namespace static_log
 
 #define BYTES_PER_CACHE_LINE 64
 
-static const uint32_t STAGING_BUFFER_SIZE = 1048576U;
+static const uint32_t kSTAGING_BUFFER_SIZE = 1048576U;
 
 } // namespace static_log
 

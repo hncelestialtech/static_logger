@@ -331,13 +331,6 @@ analyzeFmtParamSize(T... args)
     }
 }
 
-template<typename... T>
-constexpr size_t
-getParamSize(T... args)
-{
-    return sizeof...(T);
-}
-
 /**
  * Special templated function that takes in an argument T and attempts to
  * convert it to a uint64_t. If the type T is incompatible, than a value
@@ -403,14 +396,15 @@ typename std::enable_if<!std::is_same<T, const wchar_t*>::value
                         && !std::is_same<T, const void*>::value
                         && !std::is_same<T, void*>::value
                         , size_t>::type
-getArgSize(const ParamType fmtType,
-           uint64_t &previousPrecision,
-           size_t &stringSize,
+getArgSize(const ParamType fmt_type,
+           uint64_t &previous_precision,
+           size_t &string_size,
            T arg)
 {
-    if (fmtType == ParamType::DYNAMIC_PRECISION)
-        previousPrecision = as_uint64_t(arg);
+    if (fmt_type == ParamType::DYNAMIC_PRECISION)
+        previous_precision = as_uint64_t(arg);
 
+    string_size = sizeof(T);
     return sizeof(T);
 }
 
@@ -418,11 +412,12 @@ getArgSize(const ParamType fmtType,
  * "void *" specialization for getArgSize. (See documentation above).
  */
 inline size_t
-getArgSize(const ParamType,
-           uint64_t &previousPrecision,
-           size_t &stringSize,
+getArgSize(const ParamType fmt_type __attribute__((unused)),
+           uint64_t &previous_precision __attribute__((unused)),
+           size_t &string_size,
            const void*)
 {
+    string_size = sizeof(void*);
     return sizeof(void*);
 }
 
@@ -447,61 +442,61 @@ getArgSize(const ParamType,
  *      Length of the string str with a uint32_t length and no NULL terminator
  */
 inline size_t
-getArgSize(const ParamType fmtType,
-           uint64_t &previousPrecision,
-           size_t &stringBytes,
+getArgSize(const ParamType fmt_type,
+           uint64_t &previous_precision,
+           size_t &string_size,
            const char* str)
 {
-    if (fmtType <= ParamType::NON_STRING)
+    if (fmt_type <= ParamType::NON_STRING)
         return sizeof(void*);
 
-    stringBytes = strlen(str);
-    uint32_t fmtLength = static_cast<uint32_t>(stringBytes);
+    string_size = strlen(str);
+    uint32_t fmt_length = static_cast<uint32_t>(string_size);
 
     // Strings with static length specifiers (ex %.10s), have non-negative
     // ParamTypes equal to the static length. Thus, we use that value to
     // truncate the string as necessary.
-    if (fmtType >= ParamType::STRING && stringBytes > fmtLength)
-        stringBytes = fmtLength;
+    if (fmt_type >= ParamType::STRING && string_size > fmt_length)
+        string_size = fmt_length;
 
     // If the string had a dynamic precision specified (i.e. %.*s), use
     // the previous parameter as the precision and truncate as necessary.
-    else if (fmtType == ParamType::STRING_WITH_DYNAMIC_PRECISION &&
-                stringBytes > previousPrecision)
-        stringBytes = previousPrecision;
+    else if (fmt_type == ParamType::STRING_WITH_DYNAMIC_PRECISION &&
+                string_size > previous_precision)
+        string_size = previous_precision;
 
-    return stringBytes + sizeof(uint32_t);
+    return string_size + sizeof(uint32_t);
 }
 
 /**
  * Wide-character string specialization of the above.
  */
 inline size_t
-getArgSize(const ParamType fmtType,
-            uint64_t &previousPrecision,
-            size_t &stringBytes,
+getArgSize(const ParamType fmt_type,
+           uint64_t &previous_precision,
+           size_t &string_size,
             const wchar_t* wstr)
 {
-    if (fmtType <= ParamType::NON_STRING)
+    if (fmt_type <= ParamType::NON_STRING)
         return sizeof(void*);
 
-    stringBytes = wcslen(wstr);
-    uint32_t fmtLength = static_cast<uint32_t>(fmtType);
+    string_size = wcslen(wstr);
+    uint32_t fmtLength = static_cast<uint32_t>(fmt_type);
 
     // Strings with static length specifiers (ex %.10s), have non-negative
     // ParamTypes equal to the static length. Thus, we use that value to
     // truncate the string as necessary.
-    if (fmtType >= ParamType::STRING && stringBytes > fmtLength)
-        stringBytes = fmtLength;
+    if (fmt_type >= ParamType::STRING && string_size > fmtLength)
+        string_size = fmtLength;
 
     // If the string had a dynamic precision specified (i.e. %.*s), use
     // the previous parameter as the precision and truncate as necessary.
-    else if (fmtType == ParamType::STRING_WITH_DYNAMIC_PRECISION &&
-             stringBytes > previousPrecision)
-        stringBytes = previousPrecision;
+    else if (fmt_type == ParamType::STRING_WITH_DYNAMIC_PRECISION &&
+             string_size > previous_precision)
+        string_size = previous_precision;
 
-    stringBytes *= sizeof(wchar_t);
-    return stringBytes + sizeof(uint32_t);
+    string_size *= sizeof(wchar_t);
+    return string_size + sizeof(uint32_t);
 }
 
 /**

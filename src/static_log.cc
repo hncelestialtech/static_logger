@@ -1,9 +1,12 @@
 #include "static_log.h"
+
 #include "static_log_front.h"
 #include "static_log_backend.h"
 
 namespace static_log
 {
+
+uint32_t io_internal = 1000;
 
 void preallocate()
 {

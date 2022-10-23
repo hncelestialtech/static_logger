@@ -70,82 +70,6 @@ TEST(test_utils, test_generateTimePrefix)
     ASSERT_EQ(strlen(test_buf), 30);
 }
 
-static int
-process_fmt(
-        const char* fmt, 
-        const int num_params, 
-        const internal::ParamType* param_types, 
-        const char* param_list, 
-        char* log_buffer, size_t buflen)
-{
-    int origin_len = buflen;
-    size_t fmt_list_len = strlen(fmt);
-    int pos = 0;
-    int param_idx = 0;
-    bool success = true;
-    while (pos < fmt_list_len) {
-        if (fmt[pos] != '%') {
-            *log_buffer++ = *fmt;
-            buflen--;
-            continue;
-        } else {
-            ++pos;
-            int fmt_single_len = 1;
-            if (fmt[pos] == '%') {
-                *log_buffer++ = '%';
-                buflen--;
-                ++pos;
-                continue;
-            } else {
-                while (!internal::utils::isTerminal(fmt[pos]))
-                    fmt_single_len++;
-                char* fmt_single;
-                char static_fmt_cache[100];
-                bool dynamic_fmt = false;
-                if (fmt_single_len >= 100) {
-                    memset(static_fmt_cache, 0, 100);
-                    fmt_single = static_fmt_cache;
-                } else {
-                    fmt_single = (char*)malloc(fmt_single_len);
-                    dynamic_fmt = true;
-                }
-                memcpy(fmt_single, fmt + pos, fmt_single_len);
-                pos += fmt_single_len;
-                size_t log_fmt_len = 0;
-
-                if (param_idx < num_params) {
-                    if (param_types[param_idx] > internal::ParamType::NON_STRING) {
-                        uint32_t string_size = *(uint32_t*)param_list;
-                        param_list += sizeof(uint32_t);
-                        char *param_str = (char*)malloc(string_size);
-                        memcpy(param_str, param_list, string_size);
-                        log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
-                        free(param_str);
-                    }
-                    else {
-#pragma GCC diagnostic ignored "-Wformat"
-                        uint64_t param = *(uint64_t*)param_list;
-                        param_list += sizeof(uint64_t);
-                        log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param);
-#pragma GCC diagnostic pop
-                    }
-                    log_buffer += log_fmt_len;
-                    buflen -= log_fmt_len;
-                } else {
-                    fprintf(stderr, "Failed to fmt log");
-                    success = false;
-                    if (dynamic_fmt) 
-                        free(fmt_single);
-                    break;
-                }
-                if (dynamic_fmt) 
-                    free(fmt_single);
-            }
-        }
-    }
-    return success? origin_len - buflen: -1;
-}
-
 #pragma GCC diagnostic ignored "-Wformat"
 static int
 decodeNonStringFmt(
@@ -290,7 +214,7 @@ process_fmt(
                     buflen -= log_fmt_len;
                     param_idx++;
                 } else {
-                    fprintf(stderr, "Failed to fmt log");
+                    fprintf(stderr, "Failed to fmt log\n");
                     success = false;
                     if (dynamic_fmt) 
                         free(fmt_single);
@@ -353,6 +277,71 @@ TEST(test_utils, test_fmt_simple)
     // free(write_buf);
 }
 
+
+TEST(test_fmt, test_int)
+{
+    char log_buffer[1024 * 1024];
+    constexpr int n_params = internal::utils::countFmtParams("HELLO WORLD %d %+010d %ld %+010ld %lu %+010lu %o %x %X\n");
+    int iparam1 = -1;
+    uint64_t iparam2 = (uint64_t)-1;
+    static constexpr std::array<internal::ParamType, n_params> param_types = internal::utils::analyzeFormatString<n_params>("HELLO WORLD %d %+010d %ld %+010ld %lu %+010lu %o %x %X\n");
+    size_t string_sizes[9] = {};
+    uint64_t previousPrecision = -1;
+    size_t alloc_size = internal::utils::getArgSizes(param_types, previousPrecision,
+                            string_sizes, iparam1, iparam1, iparam2, iparam2, iparam2, iparam2, iparam2, iparam2, iparam2);
+    char * param_list = (char*)malloc(alloc_size);
+    char * param_list_orig = param_list;
+    internal::utils::storeArguments(param_types, string_sizes, &param_list, iparam1, iparam1, iparam2, iparam2, iparam2, iparam2, iparam2, iparam2, iparam2);
+    int plen = process_fmt("HELLO WORLD %d %+010d %ld %+010ld %lu %+010lu %o %x %X\n",
+        9, &param_types[0], &string_sizes[0], param_list_orig, log_buffer, 1024*1024
+    );
+    log_buffer[plen] = '\0';
+    fprintf(stdout, "%s", log_buffer);
+    fprintf(stdout, "HELLO WORLD %d %+010d %ld %+010ld %lu %+010lu %o %x %X\n", iparam1, iparam1, iparam2, iparam2, iparam2, iparam2, iparam2, iparam2, iparam2);
+}
+
+TEST(test_fmt, test_float)
+{
+    char log_buffer[1024 * 1024];
+    float f1 = 392.65;
+    double f2 = 392.65;
+    constexpr int n_params = internal::utils::countFmtParams("HELLO WORLD %f %E %g %G %a %A %f %E %g %G %a %A\n");
+    static constexpr std::array<internal::ParamType, n_params> param_types = internal::utils::analyzeFormatString<n_params>("HELLO WORLD %f %E %g %G %a %A %f %E %g %G %a %A\n");
+    size_t string_sizes[n_params] = {};
+    uint64_t previousPrecision = -1;
+    size_t alloc_size = internal::utils::getArgSizes(param_types, previousPrecision,
+                            string_sizes, f1, f1, f1, f1, f1, f1, f2, f2, f2, f2, f2, f2);
+    char * param_list = (char*)malloc(alloc_size);
+    char * param_list_orig = param_list;
+    internal::utils::storeArguments(param_types, string_sizes, &param_list, f1, f1, f1, f1, f1, f1, f2, f2, f2, f2, f2, f2);
+    int plen = process_fmt("HELLO WORLD %f %E %g %G %a %A %f %E %g %G %a %A\n",
+        n_params, &param_types[0], &string_sizes[0], param_list_orig, log_buffer, 1024*1024
+    );
+    log_buffer[plen] = '\0';
+    fprintf(stdout, "%s", log_buffer);
+    fprintf(stdout, "HELLO WORLD %f %E %g %G %a %A %f %E %g %G %a %A\n", f1, f1, f1, f1, f1, f1, f2, f2, f2, f2, f2, f2);
+}
+
+TEST(test_fmt, test_flag_float)
+{
+    char log_buffer[1024 * 1024];
+    float f1 = 3.141592657;
+    constexpr int n_params = internal::utils::countFmtParams("HELLO WORLD %f %+#3.3f\n");
+    static constexpr std::array<internal::ParamType, n_params> param_types = internal::utils::analyzeFormatString<n_params>("HELLO WORLD %f %+#3.3f\n");
+    size_t string_sizes[n_params] = {};
+    uint64_t previousPrecision = -1;
+    size_t alloc_size = internal::utils::getArgSizes(param_types, previousPrecision,
+                            string_sizes, f1, f1);
+    char * param_list = (char*)malloc(alloc_size);
+    char * param_list_orig = param_list;
+    internal::utils::storeArguments(param_types, string_sizes, &param_list, f1, f1);
+    int plen = process_fmt("HELLO WORLD %f %+#3.3f\n",
+        n_params, &param_types[0], &string_sizes[0], param_list_orig, log_buffer, 1024*1024
+    );
+    log_buffer[plen] = '\0';
+    fprintf(stdout, "%s", log_buffer);
+    fprintf(stdout, "HELLO WORLD %f %+#3.3f\n", f1, f1);
+}
 
 int main(int argc,char**argv){
 

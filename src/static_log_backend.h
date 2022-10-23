@@ -70,7 +70,7 @@ public:
     finishReservation(size_t nbytes) {
         assert(nbytes < min_free_space_);
         assert(producer_pos_ + nbytes <
-                storage_ + STAGING_BUFFER_SIZE);
+                storage_ + kSTAGING_BUFFER_SIZE);
 
         min_free_space_ -= nbytes;
         producer_pos_ += nbytes;
@@ -111,8 +111,8 @@ public:
     StagingBuffer(uint32_t bufferId)
             : producer_pos_(storage_)
             , end_of_recorded_space_(storage_
-                                    + STAGING_BUFFER_SIZE)
-            , min_free_space_(STAGING_BUFFER_SIZE)
+                                    + kSTAGING_BUFFER_SIZE)
+            , min_free_space_(kSTAGING_BUFFER_SIZE)
             , cycles_producer_blocked_(0)
             , num_times_producer_blocked_(0)
             , num_allocations_(0)
@@ -124,10 +124,6 @@ public:
 
     ~StagingBuffer() {
         should_deallocate_ = true;
-    }
-
-    bool isAlive() const {
-        return !should_deallocate_ || consumer_pos_ != producer_pos_;
     }
 
     StagingBuffer(const StagingBuffer&)=delete;
@@ -181,7 +177,7 @@ private:
     uint32_t id_;
 
     // Backing store used to implement the circular queue
-    char storage_[STAGING_BUFFER_SIZE];
+    char storage_[kSTAGING_BUFFER_SIZE];
 
     friend class StaticLogBackend;
     friend class StagingBufferDestroyer;
@@ -279,8 +275,6 @@ private:
     }
     
     void ioPoll();
-
-    void walkLogBuffer();
 
 private:
     static __thread StagingBuffer *staging_buffer_;
