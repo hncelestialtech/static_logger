@@ -288,7 +288,7 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
                     log_content_cache + prefix_len, reserved - prefix_len);
         char* log = log_content_cache + prefix_len + len;
         *log = '\n';
-        if (len != -1) {
+        if (len != -1 && outfd_ != -1) {
             write(StaticLogBackend::logger_.outfd_, log_content_cache, prefix_len + len + 1);
         }
         stagingbuffer->consume(log_entry->entry_size);

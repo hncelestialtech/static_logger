@@ -3,6 +3,10 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <memory>
 #include <mutex>
@@ -185,7 +189,7 @@ private:
 
 class StaticLogBackend {
 public:
-    
+
     static void preallocate()
     {
         logger_.ensureStagingBufferAllocated();
@@ -194,6 +198,29 @@ public:
     static LogLevels::LogLevel getLogLevel()
     {
         return logger_.current_log_level_;
+    }
+
+    static void setLogFile(const char* log_file)
+    {
+        std::unique_lock<std::mutex> lock(logger_.buffer_mutex_);
+        logger_.is_stop_ = true;
+        logger_.fdflush_.join();
+        if (logger_.outfd_ != -1) {
+            close(logger_.outfd_);
+        }
+        logger_.outfd_ = -1;
+        logger_.outfd_ = open(log_file, O_RDWR|O_CLOEXEC, 0666);
+        if(logger_.outfd_ == -1) {
+            fprintf(stderr, "%s: Failed to open file %s\n", __FUNCTION__, log_file);
+            return;
+        }
+        logger_.fdflush_ = std::move(std::thread(&StaticLogBackend::ioPoll, &logger_));
+    }
+
+    static void sync()
+    {
+        std::unique_lock<std::mutex> lock(logger_.buffer_mutex_);
+        logger_.wake_up_cond_.notify_one();
     }
 
     /**

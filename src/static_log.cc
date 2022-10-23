@@ -15,7 +15,7 @@ void preallocate()
 
 void setLogFile(const char* filename)
 {
-
+    details::StaticLogBackend::setLogFile(filename);
 }
 
 LogLevels::LogLevel getLogLevel() 
@@ -30,7 +30,7 @@ void setLogLevel(LogLevels::LogLevel log_level)
 
 void sync()
 {
-
+    details::StaticLogBackend::sync();
 }
 
 } // namespace static_log
