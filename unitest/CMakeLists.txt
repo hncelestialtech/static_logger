@@ -18,3 +18,6 @@ target_link_libraries(perf_latency PRIVATE tscns static_log spdlog pthread)
 
 add_executable(tst_api test_api.cc)
 target_link_libraries(tst_api tscns static_log pthread)
+
+add_executable(test_mt test_mt.cc)
+target_link_libraries(test_mt tscns static_log pthread)

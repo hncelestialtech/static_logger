@@ -1,5 +1,4 @@
 #include "static_log.h"
-#include "static_log_front.h"
 
 int main()
 {
