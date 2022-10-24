@@ -7,7 +7,6 @@
 #include<gtest/gtest.h>
 
 #include "static_log_internal.h"
-#include "static_log_utils.h"
 using namespace static_log;
 
 static void
@@ -197,7 +196,7 @@ process_fmt(
                 size_t log_fmt_len = 0;
 
                 if (param_idx < num_params) {
-                    if (param_types[param_idx] > internal::ParamType::NON_STRING) {
+                    if (param_types[param_idx] > internal::ParamType::kNON_STRING) {
                         uint32_t string_size = *(uint32_t*)param_list;
                         param_list += sizeof(uint32_t);
                         char *param_str = (char*)malloc(string_size);
