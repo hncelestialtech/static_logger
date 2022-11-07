@@ -40,6 +40,7 @@ thread_local StaticLogBackend::StagingBufferDestroyer StaticLogBackend::destroye
 uint32_t poll_interval_no_work = DEFAULT_INTERVAL;
 
 #define DEFAULT_LOGFILE     "log.txt"
+#define DEFALT_CACHE_SIZE 1024 * 1024
 
 StaticLogBackend::StaticLogBackend():
     current_log_level_(LogLevels::kDEBUG),
@@ -85,44 +86,59 @@ convertInt2Str(int ts, char*& raw) {
     }
 }
 
+#define TIEMSTAMP_PREFIX_LEN 31
 // [xxxx-xx-xx-hh:mm:ss.xxxxxxxxx]
-int 
+int
 generateTimePrefix(uint64_t timestamp, char* raw_data) {
-    const int prefix_len = 31;
+    char* origin = raw_data;
+    int prefix_len{0};
     const int nano_bits = 9;
-    *raw_data = '[';
+    static_assert(TIEMSTAMP_PREFIX_LEN < DEFALT_CACHE_SIZE, "default buffer size is smaller than time prefix len");
+    *raw_data = '[';    prefix_len += 1;
     raw_data++;
     uint64_t nano = timestamp % 1000000000;
     timestamp = timestamp / 1000000000;
     struct tm* tm_now = localtime((time_t*)&timestamp);
     memcpy(raw_data, std::to_string(tm_now->tm_year + 1900).c_str(), 4);
-    raw_data += 4;
-    *raw_data++ = '-';
-    convertInt2Str(tm_now->tm_mon + 1, raw_data);
-    *raw_data++ = '-';
-    convertInt2Str(tm_now->tm_mday, raw_data);
-    *raw_data++ = '-';
-    convertInt2Str(tm_now->tm_hour, raw_data);
-    *raw_data++ = ':';
-    convertInt2Str(tm_now->tm_min, raw_data);
-    *raw_data++ = ':';
-    convertInt2Str(tm_now->tm_sec, raw_data);
-    *raw_data++ = '.';
+    raw_data += 4; prefix_len += 4;
+    *raw_data++ = '-'; prefix_len += 1;
+    convertInt2Str(tm_now->tm_mon + 1, raw_data);   prefix_len += 2;
+    *raw_data++ = '-'; prefix_len += 1;
+    convertInt2Str(tm_now->tm_mday, raw_data);  prefix_len += 2;
+    *raw_data++ = '-';  prefix_len += 1;
+    convertInt2Str(tm_now->tm_hour, raw_data);  prefix_len += 2;
+    *raw_data++ = ':';  prefix_len += 1;
+    convertInt2Str(tm_now->tm_min, raw_data);   prefix_len += 2;
+    *raw_data++ = ':';  prefix_len += 1;
+    convertInt2Str(tm_now->tm_sec, raw_data);   prefix_len += 2;
+    *raw_data++ = '.';  prefix_len += 1;
     int nanolen = strlen(std::to_string(nano).c_str());
-    memcpy(raw_data, std::to_string(nano).c_str(), nanolen);
-    raw_data += nanolen;
+    memcpy(raw_data + nano_bits - nanolen , std::to_string(nano).c_str(), nanolen);
     if (nanolen < nano_bits) {
         int bits = nano_bits - nanolen;
         for(int i = 0; i < bits; ++i)
             *raw_data++ = '0';
+        raw_data += nanolen;
+    } else {
+        raw_data += nano_bits;
     }
-    *raw_data = ']';
+    prefix_len += nano_bits;
+    *raw_data = ']';    prefix_len += 1;
+    assert(prefix_len == TIEMSTAMP_PREFIX_LEN);
     return prefix_len;
 }
 
+/**
+ * 63 significant initial characters in an internal identifier or a macro name
+ * https://en.cppreference.com/w/c/language/identifier
+ */
+#define MAX_FUNC_NAME 63
+#define MAX_LINE    128
 static int
 generateCallInfoPrefix(const static_log::internal::StaticInfo* static_info, char* raw)
 {
+    constexpr int max_call_info_len = 1 + 5 + 2 + MAX_FUNC_NAME + 2 + MAX_LINE + 1; // [LEVEL][FUNC_NAME][LINE]
+    static_assert(DEFALT_CACHE_SIZE - TIEMSTAMP_PREFIX_LEN > max_call_info_len, "log buffer is too small to store func infomation\n");
     int prefix_len = 0;
     *raw++ = '[';
     prefix_len++;
@@ -229,13 +245,24 @@ decodeNonStringFmt(
 #pragma GCC diagnostic pop
 
 static int
+decodeStringFmt(
+    const char* fmt,
+    int param_idx,
+    size_t* param_size,
+    const char* param_str,
+    const char*& log_buffer, bool &dynamic_buffer)
+{
+    
+}
+
+static int
 process_fmt(
         const char* fmt, 
         const int num_params, 
         const internal::ParamType* param_types,
         size_t* param_size_list,
         const char* param_list, 
-        char* log_buffer, size_t buflen)
+        char*& log_buffer, size_t buflen, bool& dynamic_buffer)
 {
     char* origin_buffer = log_buffer;
     int origin_len = buflen;
@@ -279,14 +306,16 @@ process_fmt(
 
                 if (param_idx < num_params) {
                     if (param_types[param_idx] > internal::ParamType::kNON_STRING) {
-                        uint32_t string_size = *(uint32_t*)param_list;
-                        param_list += sizeof(uint32_t);
-                        char *param_str = (char*)malloc(string_size);
-                        memcpy(param_str, param_list, string_size);
-                        param_str[string_size] = '\0';
-                        log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
-                        free(param_str);
-                        param_list += string_size;
+                        // uint32_t string_size = *(uint32_t*)param_list;
+                        // param_list += sizeof(uint32_t);
+                        // char *param_str = (char*)malloc(string_size);
+                        // memcpy(param_str, param_list, string_size);
+                        // param_str[string_size] = '\0';
+                        // log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
+                        // free(param_str);
+                        // param_list += string_size;
+                        log_fmt_len = decodeStringFmt();
+                        param_list = param_list + sizeof(uint32_t) + string_size;
                     }
                     else {
                         log_fmt_len = decodeNonStringFmt(log_buffer, buflen, fmt_single, param_list, param_size_list[param_idx]);
@@ -310,33 +339,40 @@ process_fmt(
     return success? origin_len - buflen: -1;
 }
 
-#define DEFALT_CACHE_SIZE 1024 * 1024
 void 
 StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
 {
-    char log_content_cache[DEFALT_CACHE_SIZE];
+    char log_buffer_cache[DEFALT_CACHE_SIZE];
+    bool dynamic_alloc_flag = false;
     int reserved = DEFALT_CACHE_SIZE;
     uint64_t bytes_available = 0;
     char* raw_data = stagingbuffer->peek(&bytes_available);
     if (bytes_available > 0) {
         internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
         log_entry->timestamp = rdns();
-        auto prefix_ts_len = generateTimePrefix(log_entry->timestamp, log_content_cache);
+        auto prefix_ts_len = generateTimePrefix(log_entry->timestamp, log_buffer_cache);
         // log_content_cache[prefix_len] = '\0';
         reserved -= prefix_ts_len;
-        auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_content_cache + prefix_ts_len);
+        auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_buffer_cache + prefix_ts_len);
         reserved -= prefix_callinfo_len;
         const char* fmt = log_entry->static_info->format;
+        char* log_content_buffer = log_buffer_cache + prefix_ts_len + prefix_callinfo_len;
         int len = process_fmt(fmt, 
                     log_entry->static_info->num_params, 
                     log_entry->static_info->param_types,
                     (size_t*)log_entry->param_size,
                     (char*)log_entry + sizeof(internal::LogEntry),
-                    log_content_cache + prefix_ts_len + prefix_callinfo_len, reserved);
-        char* log = log_content_cache + prefix_ts_len + prefix_callinfo_len + len;
+                    log_content_buffer, reserved, dynamic_alloc_flag);
+        char* log = log_content_buffer + len;
         *log = '\n';
         if (len != -1 && outfd_ != -1) {
-            write(StaticLogBackend::logger_.outfd_, log_content_cache, prefix_ts_len + prefix_callinfo_len + len + 1);
+            if (dynamic_alloc_flag) {
+                write(StaticLogBackend::logger_.outfd_, log_buffer_cache, prefix_ts_len + prefix_callinfo_len + len + 1);
+            } else {
+                write(StaticLogBackend::logger_.outfd_, log_buffer_cache, prefix_ts_len + prefix_callinfo_len);
+                write(StaticLogBackend::logger_.outfd_, log_content_buffer, len + 1);
+                free(log_content_buffer);
+            }
             stagingbuffer->consume(log_entry->entry_size);
         }
     }
