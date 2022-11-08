@@ -189,6 +189,7 @@ private:
 
 class StaticLogBackend {
 public:
+    ~StaticLogBackend();
 
     static void preallocate()
     {
@@ -282,7 +283,10 @@ public:
 
 private:
     StaticLogBackend();
-    ~StaticLogBackend();
+    StaticLogBackend(const StaticLogBackend&)=delete;
+    StaticLogBackend& operator=(const StaticLogBackend&)=delete;
+    StaticLogBackend(StaticLogBackend&&)=delete;
+    StaticLogBackend& operator=(StaticLogBackend&&)=delete;
 
     /**
      * Allocates thread-local structures if they weren't already allocated.
@@ -344,6 +348,10 @@ private:
     std::thread fdflush_;
 
     int     outfd_;
+
+    // Stores the formatted log content
+    char*   log_buffer_;
+    size_t  bufflen_;
 private:
     static StaticLogBackend logger_;
 };

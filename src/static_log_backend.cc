@@ -20,7 +20,7 @@
 
 namespace static_log {
 
-namespace internals {
+namespace details {
 
 static const char* log_level_str[] = {
     "non",
@@ -30,12 +30,10 @@ static const char* log_level_str[] = {
     "debug"
 };
 
-} // internals
-
-namespace details {
 __thread StagingBuffer *StaticLogBackend::staging_buffer_ = nullptr;
 StaticLogBackend StaticLogBackend::logger_;
 thread_local StaticLogBackend::StagingBufferDestroyer StaticLogBackend::destroyer_{};
+
 #define DEFAULT_INTERVAL 10
 uint32_t poll_interval_no_work = DEFAULT_INTERVAL;
 
@@ -51,7 +49,9 @@ StaticLogBackend::StaticLogBackend():
     thread_buffers_(),
     is_stop_(false),
     is_exit_(false),
-    outfd_(-1)
+    outfd_(-1),
+    log_buffer_(NULL),
+    bufflen_(0)
 {
     const char * logfile = DEFAULT_LOGFILE;
     outfd_ = open(logfile, O_RDWR|O_CREAT, 0666);
@@ -60,8 +60,14 @@ StaticLogBackend::StaticLogBackend():
         exit(-1);
     }
 
-    fdflush_ = std::thread(&StaticLogBackend::ioPoll, this);
+    log_buffer_ = (char*)malloc(DEFALT_CACHE_SIZE);
+    if (log_buffer_ == NULL) {
+        fprintf(stderr, "Failed to create log buffer\n");
+        exit(-1);
+    }
+    bufflen_ = DEFALT_CACHE_SIZE;
 
+    fdflush_ = std::thread(&StaticLogBackend::ioPoll, this);
 }
 
 StaticLogBackend::~StaticLogBackend()
@@ -71,6 +77,9 @@ StaticLogBackend::~StaticLogBackend()
         fdflush_.join();
     if (outfd_ != -1)
         close(outfd_);
+    if (log_buffer_)
+        free(log_buffer_);
+    bufflen_ = 0;
 }
 
 static void
@@ -90,7 +99,7 @@ convertInt2Str(int ts, char*& raw) {
 // [xxxx-xx-xx-hh:mm:ss.xxxxxxxxx]
 int
 generateTimePrefix(uint64_t timestamp, char* raw_data) {
-    char* origin = raw_data;
+    // char* origin = raw_data;
     int prefix_len{0};
     const int nano_bits = 9;
     static_assert(TIEMSTAMP_PREFIX_LEN < DEFALT_CACHE_SIZE, "default buffer size is smaller than time prefix len");
@@ -135,15 +144,15 @@ generateTimePrefix(uint64_t timestamp, char* raw_data) {
 #define MAX_FUNC_NAME 63
 #define MAX_LINE    128
 static int
-generateCallInfoPrefix(const static_log::internal::StaticInfo* static_info, char* raw)
+generateCallInfoPrefix(const StaticInfo* static_info, char* raw)
 {
     constexpr int max_call_info_len = 1 + 5 + 2 + MAX_FUNC_NAME + 2 + MAX_LINE + 1; // [LEVEL][FUNC_NAME][LINE]
     static_assert(DEFALT_CACHE_SIZE - TIEMSTAMP_PREFIX_LEN > max_call_info_len, "log buffer is too small to store func infomation\n");
     int prefix_len = 0;
     *raw++ = '[';
     prefix_len++;
-    auto level_len = strlen(internals::log_level_str[(uint32_t)static_info->log_level]);
-    memcpy(raw, internals::log_level_str[(uint32_t)static_info->log_level], level_len);
+    auto level_len = strlen(log_level_str[(uint32_t)static_info->log_level]);
+    memcpy(raw, log_level_str[(uint32_t)static_info->log_level], level_len);
     raw += level_len;
     prefix_len += level_len;
     *raw++ = ']';
@@ -167,27 +176,60 @@ generateCallInfoPrefix(const static_log::internal::StaticInfo* static_info, char
     return prefix_len;
 }
 
+static int
+resize_log_buffer(char*&  log_buffer, size_t& old_size, size_t new_size)
+{
+    char* buffer = (char*)malloc(new_size);
+    if (buffer == NULL) {
+        fprintf(stderr, "Failed to resize log buffer, wanted to alloc %lu\n", new_size);
+        return -1;
+    }
+    memcpy(buffer, log_buffer, old_size);
+    free(log_buffer);
+    log_buffer = buffer;
+    old_size = new_size;
+    return 0;
+}
+
+#define CHECK_LOG_BUFFER_REALLOC() do { \
+    if (fmt_len >= reserved) {   \
+        int ret = resize_log_buffer(log_buffer, log_buffer_len, fmt_len << 1 + log_buffer_len - reserved);   \
+        if (ret < 0) return -1; \
+        reserved = log_buffer_len - start_pos;  \
+        goto retry; \
+    }   \
+} while(0)
+
 #pragma GCC diagnostic ignored "-Wformat"
 static int
 decodeNonStringFmt(
-    char* __restrict__ log_buffer, 
-    size_t log_buffer_len, 
+    char*& log_buffer, 
+    size_t& log_buffer_len,
+    size_t& reserved,
+    size_t start_pos,
     char * fmt, 
     const char* param, 
     size_t param_size)
 {
-    int fmt_len = 0;
+    size_t fmt_len = 0;
     char terminal_flag = fmt[strlen(fmt) - 1];
+retry:
     switch (param_size) {
     case sizeof(char):
         {
             const char* param8 = param;
-            if (terminal_flag == 'c')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int8_t*)param8);
-            else if (terminal_flag == 'd' || terminal_flag == 'i')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int8_t*)param8);
-            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint8_t*)param8);
+            if (terminal_flag == 'c') {
+                fmt_len = snprintf(log_buffer + start_pos, reserved, fmt, *(char*)param8);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
+            else if (terminal_flag == 'd' || terminal_flag == 'i') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(int8_t*)param8);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(uint8_t*)param8);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
             else 
                 fprintf(stderr, "Failed to parse fmt with a one bytes long param\n");
             break;
@@ -195,26 +237,34 @@ decodeNonStringFmt(
     case sizeof(uint16_t):
         {
             const uint16_t* param16 = (uint16_t*)param;
-            if (terminal_flag == 'd' || terminal_flag == 'i')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int16_t*)param16);
-            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint16_t*)param16);
+            if (terminal_flag == 'd' || terminal_flag == 'i') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(int16_t*)param16);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(uint16_t*)param16);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
             else 
                 fprintf(stderr, "Failed to parse fmt with a two bytes long param\n");
-            fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *param16);
             break;
         }
     case sizeof(uint32_t):
         {
             const uint32_t* param32 = (uint32_t*)param;
-            if (terminal_flag == 'd' || terminal_flag == 'i')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int32_t*)param32);
-            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint32_t*)param32);
+            if (terminal_flag == 'd' || terminal_flag == 'i') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(int32_t*)param32);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(uint32_t*)param32);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
             else if (terminal_flag == 'f' || terminal_flag == 'F' || terminal_flag == 'e' ||terminal_flag == 'e' || 
                 terminal_flag == 'E' || terminal_flag == 'g' || terminal_flag == 'G'|| terminal_flag == 'a' ||terminal_flag == 'A') {
                 static_assert(sizeof(float) == sizeof(uint32_t));
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(float*)param32);
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(float*)param32);
+                CHECK_LOG_BUFFER_REALLOC();
             }            
             else 
                 fprintf(stderr, "Failed to parse fmt with a two bytes long param\n");
@@ -223,69 +273,105 @@ decodeNonStringFmt(
     case sizeof(uint64_t):
         {
             const uint64_t* param64 = (uint64_t*)param;
-            if (terminal_flag == 'd' || terminal_flag == 'i')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(int64_t*)param64);
-            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X')
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(uint64_t*)param64);
+            if (terminal_flag == 'd' || terminal_flag == 'i') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(int64_t*)param64);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
+            else if (terminal_flag == 'u' || terminal_flag == 'o' || terminal_flag == 'x' || terminal_flag == 'X') {
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(uint64_t*)param64);
+                CHECK_LOG_BUFFER_REALLOC();
+            }
             else if (terminal_flag == 'f' || terminal_flag == 'F' || terminal_flag == 'e' ||terminal_flag == 'e' || 
                 terminal_flag == 'E' || terminal_flag == 'g' || terminal_flag == 'G'|| terminal_flag == 'a' ||terminal_flag == 'A') {
                 static_assert(sizeof(double) == sizeof(uint64_t));
-                fmt_len = snprintf(log_buffer, log_buffer_len, fmt, *(double*)param64);
+                fmt_len = snprintf(log_buffer + start_pos, log_buffer_len, fmt, *(double*)param64);
+                CHECK_LOG_BUFFER_REALLOC();
             }
             else
                 fprintf(stderr, "Failed to parse fmt with a two bytes long param\n");
             break;
         }
     default:
-        fprintf(stderr, "Failed to decode fmt param, got size %ld\n", param_size);
+        fprintf(stderr, "Failed to decode fmt param, got size %lu\n", param_size);
         break;
     }
     return fmt_len;
 }
 #pragma GCC diagnostic pop
 
+#define DEFAULT_PARAM_CACHE_SIZE 1024
 static int
-decodeStringFmt(
-    const char* fmt,
-    int param_idx,
-    size_t* param_size,
-    const char* param_str,
-    const char*& log_buffer, bool &dynamic_buffer)
+decodeStringFmt(char* log_buffer, size_t& bufferlen, size_t& reserved, size_t start_pos, const char* param, size_t param_size, const char* fmt)
 {
-    
+    assert((char*)log_buffer - (char*)start_pos == bufferlen - reserved);
+    char string_param_cache[DEFAULT_PARAM_CACHE_SIZE];
+    bool dynamic_alloc = false;
+    char* param_buffer = string_param_cache;
+    int ret = 0;
+    if (param_size >= DEFAULT_PARAM_CACHE_SIZE) {
+        param_buffer = (char*)malloc(param_size + 1); // strlen(str) + '\0'
+        if (param_buffer == NULL) {
+            fprintf(stderr, "Failed to alloc param buffer\n");
+            return -1;
+        }
+        dynamic_alloc = true;
+    }
+    memcpy(param_buffer, param, param_size);
+    param_buffer[param_size] = '\0';
+    size_t needed_fmt_len = snprintf(log_buffer + start_pos, reserved, fmt, param_buffer);
+    if (needed_fmt_len > reserved) {
+        size_t new_log_buflen = needed_fmt_len + 1 + bufferlen - reserved;
+        char* tmp = (char*)malloc(new_log_buflen);
+        if (tmp == NULL) {
+            fprintf(stderr, "Failed to realloc log buffer, needed alloc size %lu\n", needed_fmt_len);
+            ret = -1;
+            goto out;
+        }
+        reserved = new_log_buflen - bufferlen + reserved;
+        bufferlen = new_log_buflen;
+        memcpy(tmp, log_buffer, start_pos);
+        snprintf(tmp + start_pos, needed_fmt_len + 1, fmt, param_buffer);
+        free(log_buffer);
+        log_buffer = tmp;
+    }
+    ret = needed_fmt_len;
+out:
+    if (dynamic_alloc)
+        free(param_buffer);
+    return ret;
 }
 
 static int
 process_fmt(
         const char* fmt, 
         const int num_params, 
-        const internal::ParamType* param_types,
+        const ParamType* param_types,
         size_t* param_size_list,
         const char* param_list, 
-        char*& log_buffer, size_t buflen, bool& dynamic_buffer)
+        char*& log_buffer, size_t& buflen, size_t start_pos)
 {
-    char* origin_buffer = log_buffer;
-    int origin_len = buflen;
+    char* log_pos = log_buffer + start_pos;
     size_t fmt_list_len = strlen(fmt);
+    size_t reserved = buflen - start_pos;
     int pos = 0;
     int param_idx = 0;
     bool success = true;
     while (pos < fmt_list_len) {
         if (fmt[pos] != '%') {
-            *log_buffer++ = fmt[pos++];
-            buflen--;
+            *log_pos++ = fmt[pos++];
+            reserved--;
             continue;
         } else {
             ++pos;
             int fmt_single_len = 1;
             if (fmt[pos] == '%') {
-                *log_buffer++ = '%';
-                buflen--;
+                *log_pos++ = '%';
+                reserved--;
                 ++pos;
                 continue;
             } else {
                 int fmt_start_pos = pos - 1;
-                while (!internal::utils::isTerminal(fmt[pos])) {
+                while (!isTerminal(fmt[pos])) {
                     fmt_single_len++;
                     pos++;
                 }
@@ -305,24 +391,22 @@ process_fmt(
                 size_t log_fmt_len = 0;
 
                 if (param_idx < num_params) {
-                    if (param_types[param_idx] > internal::ParamType::kNON_STRING) {
-                        // uint32_t string_size = *(uint32_t*)param_list;
-                        // param_list += sizeof(uint32_t);
-                        // char *param_str = (char*)malloc(string_size);
-                        // memcpy(param_str, param_list, string_size);
-                        // param_str[string_size] = '\0';
-                        // log_fmt_len = snprintf(log_buffer, buflen, fmt_single, param_str);
-                        // free(param_str);
-                        // param_list += string_size;
-                        log_fmt_len = decodeStringFmt();
+                    if (param_types[param_idx] > ParamType::kNON_STRING) {
+                        uint32_t string_size = *(uint32_t*)param_list;
+                        param_list += sizeof(uint32_t);
+                        log_fmt_len = decodeStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, param_list, string_size, fmt_single);
                         param_list = param_list + sizeof(uint32_t) + string_size;
                     }
                     else {
-                        log_fmt_len = decodeNonStringFmt(log_buffer, buflen, fmt_single, param_list, param_size_list[param_idx]);
+                        log_fmt_len = decodeNonStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, fmt_single, param_list, param_size_list[param_idx]);
+                        if (log_fmt_len == -1)  {
+                            success = false;
+                            break;
+                        }
                         param_list += param_size_list[param_idx];
                     }
-                    log_buffer += log_fmt_len;
-                    buflen -= log_fmt_len;
+                    log_pos += log_fmt_len;
+                    reserved -= log_fmt_len;
                     param_idx++;
                 } else {
                     fprintf(stderr, "Failed to fmt log\n");
@@ -336,43 +420,31 @@ process_fmt(
             }
         }
     }
-    return success? origin_len - buflen: -1;
+    return success? buflen - reserved: -1;
 }
 
 void 
 StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
 {
-    char log_buffer_cache[DEFALT_CACHE_SIZE];
-    bool dynamic_alloc_flag = false;
-    int reserved = DEFALT_CACHE_SIZE;
     uint64_t bytes_available = 0;
     char* raw_data = stagingbuffer->peek(&bytes_available);
     if (bytes_available > 0) {
-        internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
+        LogEntry *log_entry = (LogEntry *)raw_data;
         log_entry->timestamp = rdns();
-        auto prefix_ts_len = generateTimePrefix(log_entry->timestamp, log_buffer_cache);
+        auto prefix_ts_len = generateTimePrefix(log_entry->timestamp, log_buffer_);
         // log_content_cache[prefix_len] = '\0';
-        reserved -= prefix_ts_len;
-        auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_buffer_cache + prefix_ts_len);
-        reserved -= prefix_callinfo_len;
+        auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_buffer_ + prefix_ts_len);
         const char* fmt = log_entry->static_info->format;
-        char* log_content_buffer = log_buffer_cache + prefix_ts_len + prefix_callinfo_len;
         int len = process_fmt(fmt, 
                     log_entry->static_info->num_params, 
                     log_entry->static_info->param_types,
                     (size_t*)log_entry->param_size,
-                    (char*)log_entry + sizeof(internal::LogEntry),
-                    log_content_buffer, reserved, dynamic_alloc_flag);
-        char* log = log_content_buffer + len;
+                    (char*)log_entry + sizeof(LogEntry),
+                    log_buffer_, bufflen_, prefix_ts_len + prefix_callinfo_len);
+        char* log = log_buffer_ + prefix_ts_len + prefix_callinfo_len + len;
         *log = '\n';
         if (len != -1 && outfd_ != -1) {
-            if (dynamic_alloc_flag) {
-                write(StaticLogBackend::logger_.outfd_, log_buffer_cache, prefix_ts_len + prefix_callinfo_len + len + 1);
-            } else {
-                write(StaticLogBackend::logger_.outfd_, log_buffer_cache, prefix_ts_len + prefix_callinfo_len);
-                write(StaticLogBackend::logger_.outfd_, log_content_buffer, len + 1);
-                free(log_content_buffer);
-            }
+            write(StaticLogBackend::logger_.outfd_, log_buffer_, prefix_ts_len + prefix_callinfo_len + len + 1);
             stagingbuffer->consume(log_entry->entry_size);
         }
     }
@@ -406,13 +478,13 @@ StaticLogBackend::ioPoll()
         guard.unlock();
         std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
         guard.lock();
-        for(int i = 0; i < thread_buffers_.size(); ++i) {
+        for(size_t i = 0; i < thread_buffers_.size(); ++i) {
             auto thread_buffer = thread_buffers_[i];
             if (!thread_buffer->checkCanDelete()) {
                 uint64_t bytes_available = 0;
                 char* raw_data = thread_buffer->peek(&bytes_available);
                 if (bytes_available > 0) {
-                    internal::LogEntry *log_entry = (internal::LogEntry *)raw_data;
+                    LogEntry *log_entry = (LogEntry *)raw_data;
                     if (log_entry->timestamp < earliest_thead_buffer.first) {
                         earliest_thead_buffer.first = log_entry->timestamp;
                         earliest_thead_buffer.second = thread_buffer;
