@@ -276,7 +276,7 @@ retry:
 
 #define DEFAULT_PARAM_CACHE_SIZE 1024
 static int
-decodeStringFmt(char* log_buffer, size_t& bufferlen, size_t& reserved, size_t start_pos, const char* param, size_t param_size, const char* fmt)
+decodeStringFmt(char*& log_buffer, size_t& bufferlen, size_t& reserved, size_t start_pos, const char* param, size_t param_size, const char* fmt)
 {
     assert((char*)log_buffer - (char*)start_pos == bufferlen - reserved);
     char string_param_cache[DEFAULT_PARAM_CACHE_SIZE];
