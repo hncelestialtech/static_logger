@@ -193,7 +193,7 @@ resize_log_buffer(char*&  log_buffer, size_t& old_size, size_t new_size)
 
 #define CHECK_LOG_BUFFER_REALLOC() do { \
     if (fmt_len >= reserved) {   \
-        int ret = resize_log_buffer(log_buffer, log_buffer_len, fmt_len << 1 + log_buffer_len - reserved);   \
+        int ret = resize_log_buffer(log_buffer, log_buffer_len, (fmt_len << 1) + log_buffer_len - reserved);   \
         if (ret < 0) return -1; \
         reserved = log_buffer_len - start_pos;  \
         goto retry; \
@@ -301,7 +301,7 @@ retry:
 
 #define DEFAULT_PARAM_CACHE_SIZE 1024
 static int
-decodeStringFmt(char* log_buffer, size_t& bufferlen, size_t& reserved, size_t start_pos, const char* param, size_t param_size, const char* fmt)
+decodeStringFmt(char*& log_buffer, size_t& bufferlen, size_t& reserved, size_t start_pos, const char* param, size_t param_size, const char* fmt)
 {
     assert((char*)log_buffer - (char*)start_pos == bufferlen - reserved);
     char string_param_cache[DEFAULT_PARAM_CACHE_SIZE];
@@ -353,7 +353,7 @@ process_fmt(
     char* log_pos = log_buffer + start_pos;
     size_t fmt_list_len = strlen(fmt);
     size_t reserved = buflen - start_pos;
-    int pos = 0;
+    size_t pos = 0;
     int param_idx = 0;
     bool success = true;
     while (pos < fmt_list_len) {
@@ -388,7 +388,7 @@ process_fmt(
                     dynamic_fmt = true;
                 }
                 memcpy(fmt_single, fmt + fmt_start_pos, fmt_single_len);
-                size_t log_fmt_len = 0;
+                int log_fmt_len = 0;
 
                 if (param_idx < num_params) {
                     if (param_types[param_idx] > ParamType::kNON_STRING) {

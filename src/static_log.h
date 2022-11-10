@@ -2,6 +2,7 @@
 #define STATIC_LOG_H
 
 #include <stdint.h>
+#include "tsc_clock.h"
 
 namespace static_log {
 
