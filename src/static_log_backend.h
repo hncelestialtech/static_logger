@@ -281,6 +281,16 @@ public:
 
     void processLogBuffer(StagingBuffer* stagingbuffer);
 
+    static int getIOInternal() {
+        full_barrier();
+        return io_internal_;
+    }
+
+    static void setIOInternal(const int io_internal) {
+        io_internal_ = io_internal;
+        full_barrier();
+    }
+
 private:
     StaticLogBackend();
     StaticLogBackend(const StaticLogBackend&)=delete;
@@ -314,6 +324,7 @@ private:
 
 private:
     static __thread StagingBuffer *staging_buffer_;
+    static volatile int io_internal_;
 
     class StagingBufferDestroyer {
     public:

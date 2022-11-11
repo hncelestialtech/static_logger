@@ -13,6 +13,9 @@ namespace static_log
 #define STATICLOG_PRINTF_FORMAT_ATTR(string_index, first_to_check)
 #endif
 
+#define full_barrier()  \
+    __asm__ __volatile("lock; orl $0, (%%rsp)":::"memory")
+
 #define BYTES_PER_CACHE_LINE 64
 
 static const uint32_t kSTAGING_BUFFER_SIZE = 1048576U;

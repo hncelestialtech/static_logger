@@ -39,8 +39,6 @@ namespace LogLevels {
     };
 };
 
-extern uint32_t io_internal;
-
 // User API
 
 /**

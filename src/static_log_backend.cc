@@ -30,6 +30,7 @@ static const char* log_level_str[] = {
     "debug"
 };
 
+volatile int StaticLogBackend::io_internal_ = 0;
 __thread StagingBuffer *StaticLogBackend::staging_buffer_ = nullptr;
 StaticLogBackend StaticLogBackend::logger_;
 thread_local StaticLogBackend::StagingBufferDestroyer StaticLogBackend::destroyer_{};
@@ -502,7 +503,7 @@ StaticLogBackend::ioPoll()
         if (earliest_thead_buffer.first != UINT64_MAX) {
             processLogBuffer(earliest_thead_buffer.second);
         } else {
-            wake_up_cond_.wait_for(guard, std::chrono::microseconds(io_internal));
+            wake_up_cond_.wait_for(guard, std::chrono::microseconds(getIOInternal()));
         }
     }
 }

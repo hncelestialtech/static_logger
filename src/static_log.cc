@@ -6,8 +6,6 @@
 namespace static_log
 {
 
-uint32_t io_internal = 1000;
-
 void preallocate()
 {
     details::StaticLogBackend::preallocate();
