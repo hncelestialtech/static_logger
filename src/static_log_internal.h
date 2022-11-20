@@ -555,7 +555,7 @@ getArgSize(const ParamType fmt_type,
  */
 template<int arg_num = 0, unsigned long N, int M>
 inline size_t
-getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t (&)[M])
+getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t(&)[M])
 {
     return 0;
 }
