@@ -113,7 +113,7 @@ void sync();
      * evaluate for cases like '++i'.*/ \
     if (false) { static_log::details::checkFormat(format, ##__VA_ARGS__); } /*NOLINT(cppcoreguidelines-pro-type-vararg, hicpp-vararg)*/\
     \
-    static size_t param_size[n_params]{};   \
+    static size_t param_size[n_params + 1]{};   \
     uint64_t previousPrecision = -1;   \
     size_t alloc_size = static_log::details::getArgSizes(param_types, previousPrecision,    \
                             param_size, ##__VA_ARGS__) + sizeof(static_log::details::LogEntry);    \

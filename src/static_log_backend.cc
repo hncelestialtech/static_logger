@@ -454,7 +454,7 @@ process_fmt(
                         uint32_t string_size = *(uint32_t*)param_list;
                         param_list += sizeof(uint32_t);
                         log_fmt_len = decodeStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, param_list, string_size, fmt_single);
-                        param_list = param_list + sizeof(uint32_t) + string_size;
+                        param_list = param_list + string_size;
                     }
                     else {
                         log_fmt_len = decodeNonStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, fmt_single, param_list, param_size_list[param_idx]);
