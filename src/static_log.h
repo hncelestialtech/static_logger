@@ -123,7 +123,7 @@ void sync();
     write_pos += sizeof(static_log::details::LogEntry);    \
     static_log::details::storeArguments(param_types, param_size, &write_pos, ##__VA_ARGS__);    \
     log_entry->entry_size = static_log::details::downCast<uint32_t>(alloc_size);    \
-    log_entry->timestamp = rdtsc_();  \
+    log_entry->timestamp = __builtin_ia32_rdtsc();  \
     \
     static_log::details::StaticLogBackend::finishAlloc(alloc_size);  \
 } while(0)
