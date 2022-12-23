@@ -550,17 +550,6 @@ getArgSize(const ParamType fmt_type,
 }
 
 /**
- * Specialization for getArgSizes when there are no arguments, i.e. it is
- * the end of the recursion. (See above for documentation)
- */
-template<int arg_num = 0, unsigned long N, int M>
-inline size_t
-getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t (&)[M])
-{
-    return 0;
-}
-
-/**
  * Given a variable number of printf arguments and type information deduced
  * from the original format string, compute the amount of space needed to
  * store all the arguments.
@@ -609,6 +598,17 @@ getArgSizes(const std::array<ParamType, N>& arg_fmt_types,
                                                     string_sizes[arg_num], head)
            + getArgSizes<arg_num + 1>(arg_fmt_types, previous_precision,
                                                     string_sizes, rest...);
+}
+
+/**
+ * Specialization for getArgSizes when there are no arguments, i.e. it is
+ * the end of the recursion. (See above for documentation)
+ */
+template<int arg_num = 0, unsigned long N, int M>
+inline size_t
+getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t(&)[M])
+{
+    return 0;
 }
 
 
@@ -707,19 +707,6 @@ storeArgument(char **storage,
 }
 
 /**
- * Specialization of store_arguments that processes no arguments, i.e. this
- * is the end of the head/rest recursion. See above for full documentation.
- */
-template<int arg_num = 0, unsigned long N, int M>
-inline void
-storeArguments(const std::array<ParamType, N>&,
-                size_t (&string_sizes)[M],
-                char **)
-{
-    // No arguments, do nothing.
-}
-
-/**
  * Given a variable number of arguments to a NANO_LOG (i.e. printf-like)
  * statement, recursively unpack the arguments, store them to a buffer, and
  * bump the buffer pointer.
@@ -760,6 +747,19 @@ storeArguments(const std::array<ParamType, N>& param_types,
     // Peel off one argument to store, and then recursively process rest
     storeArgument(storage, head, param_types[arg_num], string_sizes[arg_num]);
     storeArguments<arg_num + 1>(param_types, string_sizes, storage, rest...);
+}
+
+/**
+ * Specialization of store_arguments that processes no arguments, i.e. this
+ * is the end of the head/rest recursion. See above for full documentation.
+ */
+template<int arg_num = 0, unsigned long N, int M>
+inline void
+storeArguments(const std::array<ParamType, N>&,
+                size_t (&string_sizes)[M],
+                char **)
+{
+    // No arguments, do nothing.
 }
 
 #include <cassert>

@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <thread>
 #include <iostream>
+#include <atomic>
 
 #include "static_log.h"
 #include "static_log_common.h"
@@ -393,10 +394,10 @@ private:
     std::vector<StagingBuffer *> thread_buffers_;
 
     // Flag signaling the thread to stop running.
-    bool is_stop_;
+    std::atomic<bool> is_stop_;
 
     // Only used in setlogFile
-    bool is_exit_;
+    std::atomic<bool> is_exit_;
 
     // Backend worker who really sync the message into file
     std::thread fdflush_;

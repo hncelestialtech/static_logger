@@ -16,7 +16,8 @@
 #include <chrono>
 
 #include "static_log_internal.h"
-#include "tsc_clock.h"
+#include "static_log_cycles.h"
+
 
 namespace static_log {
 
@@ -454,7 +455,7 @@ process_fmt(
                         uint32_t string_size = *(uint32_t*)param_list;
                         param_list += sizeof(uint32_t);
                         log_fmt_len = decodeStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, param_list, string_size, fmt_single);
-                        param_list = param_list + sizeof(uint32_t) + string_size;
+                        param_list = param_list + string_size;
                     }
                     else {
                         log_fmt_len = decodeNonStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, fmt_single, param_list, param_size_list[param_idx]);
@@ -489,7 +490,7 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
     char* raw_data = stagingbuffer->peek(&bytes_available);
     if (bytes_available > 0) {
         LogEntry *log_entry = (LogEntry *)raw_data;
-        log_entry->timestamp = rdns();
+        log_entry->timestamp = get_nanotime();
         auto prefix_ts_len = generateTimePrefix(log_entry->timestamp, log_buffer_);
         // log_content_cache[prefix_len] = '\0';
         auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_buffer_ + prefix_ts_len);
