@@ -7,6 +7,8 @@ if (NOT UNITTEST)
 else ()
     set(UNITTEST TRUE)
 endif()
+add_subdirectory(googletest)
+    add_subdirectory(unitest)
 
 if (${UNITTEST})
     add_subdirectory(googletest)

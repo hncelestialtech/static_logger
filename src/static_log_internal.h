@@ -10,13 +10,14 @@
 #include <utility>
 #include <stdexcept>
 #include <limits>
+#include <iostream>
 
 #include "static_log.h"
 #include "static_log_common.h"
 
 namespace static_log {
 
-namespace internal {
+namespace details {
 
 /**
  * Describes the type of parameter that would be passed into a printf-like
@@ -110,8 +111,6 @@ struct LogEntry {
     // parameter size array
     const size_t* param_size;
 };
-
-namespace utils {
 
 /**
  * No-Op function that triggers the GNU preprocessor's format checker for
@@ -488,10 +487,7 @@ template<typename T>
 inline
 typename std::enable_if<!std::is_same<T, const wchar_t*>::value
                         && !std::is_same<T, const char*>::value
-                        && !std::is_same<T, wchar_t*>::value
                         && !std::is_same<T, char*>::value
-                        && !std::is_same<T, const void*>::value
-                        && !std::is_same<T, void*>::value
                         , size_t>::type
 getArgSize(const ParamType fmt_type,
            uint64_t &previous_precision,
@@ -505,18 +501,6 @@ getArgSize(const ParamType fmt_type,
     return sizeof(T);
 }
 
-/**
- * "void *" specialization for getArgSize. (See documentation above).
- */
-inline size_t
-getArgSize(const ParamType fmt_type __attribute__((unused)),
-           uint64_t &previous_precision __attribute__((unused)),
-           size_t &string_size,
-           const void*)
-{
-    string_size = sizeof(void*);
-    return sizeof(void*);
-}
 
 /**
  * String specialization for getArgSize. Returns the number of bytes needed
@@ -546,7 +530,7 @@ getArgSize(const ParamType fmt_type,
 {
     if (fmt_type <= ParamType::kNON_STRING)
         return sizeof(void*);
-
+    
     string_size = strlen(str);
     uint32_t fmt_length = static_cast<uint32_t>(string_size);
 
@@ -563,48 +547,6 @@ getArgSize(const ParamType fmt_type,
         string_size = previous_precision;
 
     return string_size + sizeof(uint32_t);
-}
-
-/**
- * Wide-character string specialization of the above.
- */
-inline size_t
-getArgSize(const ParamType fmt_type,
-           uint64_t &previous_precision,
-           size_t &string_size,
-            const wchar_t* wstr)
-{
-    if (fmt_type <= ParamType::kNON_STRING)
-        return sizeof(void*);
-
-    string_size = wcslen(wstr);
-    uint32_t fmtLength = static_cast<uint32_t>(fmt_type);
-
-    // Strings with static length specifiers (ex %.10s), have non-negative
-    // ParamTypes equal to the static length. Thus, we use that value to
-    // truncate the string as necessary.
-    if (fmt_type >= ParamType::kSTRING && string_size > fmtLength)
-        string_size = fmtLength;
-
-    // If the string had a dynamic precision specified (i.e. %.*s), use
-    // the previous parameter as the precision and truncate as necessary.
-    else if (fmt_type == ParamType::kSTRING_WITH_DYNAMIC_PRECISION &&
-             string_size > previous_precision)
-        string_size = previous_precision;
-
-    string_size *= sizeof(wchar_t);
-    return string_size + sizeof(uint32_t);
-}
-
-/**
- * Specialization for getArgSizes when there are no arguments, i.e. it is
- * the end of the recursion. (See above for documentation)
- */
-template<int arg_num = 0, unsigned long N, int M>
-inline size_t
-getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t (&)[M])
-{
-    return 0;
 }
 
 /**
@@ -656,6 +598,17 @@ getArgSizes(const std::array<ParamType, N>& arg_fmt_types,
                                                     string_sizes[arg_num], head)
            + getArgSizes<arg_num + 1>(arg_fmt_types, previous_precision,
                                                     string_sizes, rest...);
+}
+
+/**
+ * Specialization for getArgSizes when there are no arguments, i.e. it is
+ * the end of the recursion. (See above for documentation)
+ */
+template<int arg_num = 0, unsigned long N, int M>
+inline size_t
+getArgSizes(const std::array<ParamType, N>&, uint64_t &, size_t(&)[M])
+{
+    return 0;
 }
 
 
@@ -754,19 +707,6 @@ storeArgument(char **storage,
 }
 
 /**
- * Specialization of store_arguments that processes no arguments, i.e. this
- * is the end of the head/rest recursion. See above for full documentation.
- */
-template<int arg_num = 0, unsigned long N, int M>
-inline void
-storeArguments(const std::array<ParamType, N>&,
-                size_t (&string_sizes)[M],
-                char **)
-{
-    // No arguments, do nothing.
-}
-
-/**
  * Given a variable number of arguments to a NANO_LOG (i.e. printf-like)
  * statement, recursively unpack the arguments, store them to a buffer, and
  * bump the buffer pointer.
@@ -809,6 +749,19 @@ storeArguments(const std::array<ParamType, N>& param_types,
     storeArguments<arg_num + 1>(param_types, string_sizes, storage, rest...);
 }
 
+/**
+ * Specialization of store_arguments that processes no arguments, i.e. this
+ * is the end of the head/rest recursion. See above for full documentation.
+ */
+template<int arg_num = 0, unsigned long N, int M>
+inline void
+storeArguments(const std::array<ParamType, N>&,
+                size_t (&string_sizes)[M],
+                char **)
+{
+    // No arguments, do nothing.
+}
+
 #include <cassert>
 /**
  * Cast one size of int down to another one.
@@ -825,9 +778,7 @@ downCast(const Large& large)
     return small;
 }
 
-} // utils
-
-} // namespace internal
+} // details
 
 } // namespace static_log
 
