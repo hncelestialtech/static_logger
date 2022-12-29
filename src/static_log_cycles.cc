@@ -1,7 +1,7 @@
 #include "static_log_cycles.h"
 #include <time.h>
 
-__attribute__((weak)) int64_t 
+int64_t 
 get_nanotime()
 {
     struct timespec clock;

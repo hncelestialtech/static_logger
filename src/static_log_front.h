@@ -5,8 +5,6 @@
 #include <stdint.h>
 
 #include "static_log_internal.h"
-// #include "static_log.h"
-// #include "static_log_utils.h"
 #include "static_log_backend.h"
 
 namespace static_log {
