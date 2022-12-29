@@ -14,6 +14,7 @@
 #include <condition_variable>
 #include <thread>
 #include <iostream>
+#include <atomic>
 
 #include "static_log.h"
 #include "static_log_common.h"
@@ -80,6 +81,18 @@ public:
         producer_pos_ += nbytes;
     }
 
+    /**
+    * Peek at the data available for consumption within the stagingBuffer.
+    * The consumer should also invoke consume() to release space back
+    * to the producer. This can and should be done piece-wise where a
+    * large peek can be consume()-ed in smaller pieces to prevent blocking
+    * the producer.
+    *
+    * \param[out] bytes_available
+    *      Number of bytes consumable
+    * \return
+    *      Pointer to the consumable space
+    */
     char *peek(uint64_t *bytesAvailable);
 
     /**
@@ -136,7 +149,26 @@ public:
     StagingBuffer& operator=(StagingBuffer&&)=delete;
 
 private:
-
+    /**
+    * Attempt to reserve contiguous space for the producer without making it
+    * visible to the consumer (See reserveProducerSpace).
+    *
+    * This is the slow path of reserveProducerSpace that checks for free space
+    * within storage[] that involves touching variable shared with 
+    * thread and thus causing potential cache-coherency delays.
+    *
+    * \param nbytes
+    *      Number of contiguous bytes to reserve.
+    *
+    * \param blocking
+    *      Test parameter that indicates that the function should
+    *      return with a nullptr rather than block when there's
+    *      not enough space.
+    *
+    * \return
+    *      A pointer into storage[] that can be written to by the producer for
+    *      at least nbytes.
+    */
     char *reserveSpaceInternal(size_t nbytes, bool blocking = true);
 
     // Position within storage[] where the producer may place new data
@@ -191,6 +223,11 @@ class StaticLogBackend {
 public:
     ~StaticLogBackend();
 
+    /**
+    * The write cache work queue is allocated in advance, and if the function
+    * is not called, the request of the queue will be postponed until the first 
+    * write log 
+    */
     static void preallocate()
     {
         logger_.ensureStagingBufferAllocated();
@@ -201,6 +238,16 @@ public:
         return logger_.current_log_level_;
     }
 
+    /**
+    * Set up a log write file
+    * 
+    * Generally, it is called after the logger is initialized, and since the initialized
+    * logger will create an file named 'log.txt', there will be multiple log files if 
+    * the function is called
+    * 
+    * \param log_file
+    *   new log file path
+    */
     static void setLogFile(const char* log_file)
     {
         std::unique_lock<std::mutex> lock(logger_.buffer_mutex_);
@@ -223,6 +270,7 @@ public:
         logger_.fdflush_ = std::move(std::thread(&StaticLogBackend::ioPoll, &logger_));
     }
 
+    // Wake up backend worker
     static void sync()
     {
         std::unique_lock<std::mutex> lock(logger_.buffer_mutex_);
@@ -320,6 +368,10 @@ private:
         }
     }
     
+    /**
+    * Traverse the log buffer queue and write to the acquired logs, 
+    * all using periodic timing behavior
+    */
     void ioPoll();
 
 private:
@@ -342,7 +394,9 @@ private:
     // be dropped.
     LogLevels::LogLevel current_log_level_;
 
+    // Used to synchonize the log buffer
     std::mutex buffer_mutex_;
+    // Used to synchonize the backend worker
     std::mutex cond_mutex_;
     std::condition_variable wake_up_cond_;
     uint32_t   next_buffer_id_;
@@ -351,13 +405,15 @@ private:
     std::vector<StagingBuffer *> thread_buffers_;
 
     // Flag signaling the thread to stop running.
-    bool is_stop_;
+    std::atomic<bool> is_stop_;
 
     // Only used in setlogFile
-    bool is_exit_;
+    std::atomic<bool> is_exit_;
 
+    // Backend worker who really sync the message into file
     std::thread fdflush_;
 
+    // The file fd which sync log message to disk
     int     outfd_;
 
     // Stores the formatted log content
