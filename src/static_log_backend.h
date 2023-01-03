@@ -22,8 +22,6 @@
 namespace static_log {
 namespace details{
 
-extern uint32_t poll_interval_no_work;
-
 class StagingBufferDestroyer;
 
 /**

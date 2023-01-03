@@ -36,9 +36,6 @@ __thread StagingBuffer *StaticLogBackend::staging_buffer_ = nullptr;
 StaticLogBackend StaticLogBackend::logger_;
 thread_local StaticLogBackend::StagingBufferDestroyer StaticLogBackend::destroyer_{};
 
-#define DEFAULT_INTERVAL 10
-uint32_t poll_interval_no_work = DEFAULT_INTERVAL;
-
 #define DEFAULT_LOGFILE     "log.txt"
 #define DEFALT_CACHE_SIZE 1024 * 1024
 
@@ -74,7 +71,7 @@ StaticLogBackend::StaticLogBackend():
 
 StaticLogBackend::~StaticLogBackend()
 {
-    is_stop_ = true;
+    is_stop_.store(true, std::memory_order_release);
     if(fdflush_.joinable())
         fdflush_.join();
     if (outfd_ != -1)
@@ -181,7 +178,7 @@ generateCallInfoPrefix(const StaticInfo* static_info, char* raw)
     auto fn_len = strlen(static_info->function_name);
     memcpy(raw, static_info->function_name, fn_len);
     raw += fn_len;
-    prefix_len += strlen(static_info->function_name);
+    prefix_len += fn_len;
     *raw++ = ']';
     prefix_len++;
     *raw++ = '[';
@@ -196,7 +193,7 @@ generateCallInfoPrefix(const StaticInfo* static_info, char* raw)
 }
 
 static int
-resize_log_buffer(char*&  log_buffer, size_t& old_size, size_t new_size)
+resizeLogBuffer(char*&  log_buffer, size_t& old_size, size_t new_size)
 {
     char* buffer = (char*)malloc(new_size);
     if (buffer == NULL) {
@@ -212,7 +209,7 @@ resize_log_buffer(char*&  log_buffer, size_t& old_size, size_t new_size)
 
 #define CHECK_LOG_BUFFER_REALLOC() do { \
     if (fmt_len >= reserved) {   \
-        int ret = resize_log_buffer(log_buffer, log_buffer_len, (fmt_len << 1) + log_buffer_len - reserved);   \
+        int ret = resizeLogBuffer(log_buffer, log_buffer_len, (fmt_len << 1) + log_buffer_len - reserved);   \
         if (ret < 0) return -1; \
         reserved = log_buffer_len - start_pos;  \
         goto retry; \
@@ -361,17 +358,18 @@ decodeStringFmt(char*& log_buffer, size_t& bufferlen, size_t& reserved, size_t s
     param_buffer[param_size] = '\0';
     size_t needed_fmt_len = snprintf(log_buffer + start_pos, reserved, fmt, param_buffer);
     if (needed_fmt_len > reserved) {
-        size_t new_log_buflen = needed_fmt_len + 1 + bufferlen - reserved;
+        size_t new_log_buflen = needed_fmt_len + bufferlen - reserved + 1;
         char* tmp = (char*)malloc(new_log_buflen);
+        memset(tmp, 0, new_log_buflen);
         if (tmp == NULL) {
             fprintf(stderr, "Failed to realloc log buffer, needed alloc size %lu\n", needed_fmt_len);
             ret = -1;
             goto out;
         }
-        reserved = new_log_buflen - bufferlen + reserved;
+        reserved = needed_fmt_len + 1;
         bufferlen = new_log_buflen;
         memcpy(tmp, log_buffer, start_pos);
-        snprintf(tmp + start_pos, needed_fmt_len + 1, fmt, param_buffer);
+        snprintf(tmp + start_pos, needed_fmt_len, fmt, param_buffer);
         free(log_buffer);
         log_buffer = tmp;
     }
@@ -403,7 +401,7 @@ out:
 *   Next position to write in
 */
 static int
-process_fmt(
+processFmt(
         const char* fmt, 
         const int num_params, 
         const ParamType* param_types,
@@ -456,6 +454,10 @@ process_fmt(
                         uint32_t string_size = *(uint32_t*)param_list;
                         param_list += sizeof(uint32_t);
                         log_fmt_len = decodeStringFmt(log_buffer, buflen, reserved, log_pos - log_buffer, param_list, string_size, fmt_single);
+                        if (log_fmt_len == -1) {
+                            success = false;
+                            break;
+                        }
                         param_list = param_list + string_size;
                     }
                     else {
@@ -496,7 +498,7 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
         // log_content_cache[prefix_len] = '\0';
         auto prefix_callinfo_len = generateCallInfoPrefix(log_entry->static_info, log_buffer_ + prefix_ts_len);
         const char* fmt = log_entry->static_info->format;
-        int len = process_fmt(fmt, 
+        int len = processFmt(fmt, 
                     log_entry->static_info->num_params, 
                     log_entry->static_info->param_types,
                     (size_t*)log_entry->param_size,
@@ -532,11 +534,9 @@ StaticLogBackend::ioPoll()
 {
     threadBindCore(1);
 
-    // walkLogBuffer();
-    std::unique_lock<std::mutex> guard(buffer_mutex_);
-    while(!is_stop_ || !thread_buffers_.empty()) {
+    std::unique_lock<std::mutex> guard(buffer_mutex_, std::defer_lock);
+    while(!is_stop_.load(std::memory_order_acquire) || !thread_buffers_.empty()) {
         if (is_exit_) return;
-        guard.unlock();
         std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
         guard.lock();
         for(size_t i = 0; i < thread_buffers_.size(); ++i) {
@@ -561,9 +561,11 @@ StaticLogBackend::ioPoll()
             }
         }
         if (earliest_thead_buffer.first != UINT64_MAX) {
+            guard.unlock();
             processLogBuffer(earliest_thead_buffer.second);
         } else {
             wake_up_cond_.wait_for(guard, std::chrono::microseconds(getIOInternal()));
+            guard.unlock();
         }
     }
 }

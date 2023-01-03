@@ -121,7 +121,7 @@ struct LogEntry {
  * \param ...
  *      format parameters
  */
-static void
+static __attribute__((unused)) void
 STATICLOG_PRINTF_FORMAT_ATTR(1, 2)
 checkFormat(STATICLOG_PRINTF_FORMAT const char *, ...) {}
 
