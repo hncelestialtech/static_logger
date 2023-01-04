@@ -341,7 +341,7 @@ retry:
 static int
 decodeStringFmt(char*& log_buffer, size_t& bufferlen, size_t& reserved, size_t start_pos, const char* param, size_t param_size, const char* fmt)
 {
-    assert((char*)log_buffer - (char*)start_pos == bufferlen - reserved);
+    assert((size_t)start_pos == bufferlen - reserved);
     char string_param_cache[DEFAULT_PARAM_CACHE_SIZE];
     bool dynamic_alloc = false;
     char* param_buffer = string_param_cache;
@@ -504,10 +504,10 @@ StaticLogBackend::processLogBuffer(StagingBuffer* stagingbuffer)
                     (size_t*)log_entry->param_size,
                     (char*)log_entry + sizeof(LogEntry),
                     log_buffer_, bufflen_, prefix_ts_len + prefix_callinfo_len);
-        char* log = log_buffer_ + prefix_ts_len + prefix_callinfo_len + len;
+        char* log = log_buffer_ + len;
         *log = '\n';
         if (len != -1 && outfd_ != -1) {
-            write(StaticLogBackend::logger_.outfd_, log_buffer_, prefix_ts_len + prefix_callinfo_len + len + 1);
+            write(StaticLogBackend::logger_.outfd_, log_buffer_, len + 1);
             stagingbuffer->consume(log_entry->entry_size);
         }
     }
@@ -534,8 +534,9 @@ StaticLogBackend::ioPoll()
 {
     threadBindCore(1);
 
-    std::unique_lock<std::mutex> guard(buffer_mutex_, std::defer_lock);
+    std::unique_lock<std::mutex> guard(buffer_mutex_);
     while(!is_stop_.load(std::memory_order_acquire) || !thread_buffers_.empty()) {
+        guard.unlock();
         if (is_exit_) return;
         std::pair<uint64_t, static_log::details::StagingBuffer *> earliest_thead_buffer{UINT64_MAX, nullptr};
         guard.lock();
@@ -563,9 +564,9 @@ StaticLogBackend::ioPoll()
         if (earliest_thead_buffer.first != UINT64_MAX) {
             guard.unlock();
             processLogBuffer(earliest_thead_buffer.second);
+            guard.lock();
         } else {
             wake_up_cond_.wait_for(guard, std::chrono::microseconds(getIOInternal()));
-            guard.unlock();
         }
     }
 }
